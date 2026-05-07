@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deyan Tsvyatkov</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --overlay-color: #2a1f14;
+      --bg-color: #ccc5ba;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Outer stage wraps name + grid together */
+    #stage {
+      position: relative;
+    }
+
+    /* Name — above grid, left-aligned to grid edge */
+    #name {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: clamp(18px, 2.2vw, 36px);
+      font-weight: 400;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      word-spacing: 0.35em;
+      color: #3d2f1e;
+      opacity: 0;
+      white-space: nowrap;
+      user-select: none;
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 68px);
+      will-change: transform, opacity;
+      z-index: 30;
+    }
+
+    #subtitle {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: clamp(12px, 1vw, 16px);
+      font-weight: 400;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: #3d2f1e;
+      opacity: 0;
+      white-space: nowrap;
+      user-select: none;
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(100% + 30px);
+      will-change: transform, opacity;
+      z-index: 30;
+    }
+
+    /* Portrait */
+    #portrait-wrap {
+      position: relative;
+      width: calc(47.61vh * 1.501);
+      height: 47.61vh;
+    }
+
+    /* 3×3 tile grid */
+    #tile-grid {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr 1fr;
+      gap: 0;
+      transition: filter 0.15s ease;
+    }
+
+    /* Single assembled-portrait overlay — eliminates all tile seam artifacts.
+       Fades out as scatter progresses (--assembled-opacity driven by RAF). */
+    #tile-grid::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: var(--portrait-src, none);
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      pointer-events: none;
+      z-index: 2;
+      opacity: var(--assembled-opacity, 1);
+    }
+
+    .tile {
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+      background-size: 300% 300%;
+      background-repeat: no-repeat;
+      border-radius: 0px;
+      transition: border-radius 0.7s cubic-bezier(0.22, 1, 0.36, 1), filter 1s ease;
+      will-change: translate, scale;
+    }
+
+    .tile.scattered {
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    /* 3×3 background positions — on .tile itself to avoid sub-pixel gaps */
+    .tile[data-col="0"][data-row="0"] { background-position:   0%   0%; }
+    .tile[data-col="1"][data-row="0"] { background-position:  50%   0%; }
+    .tile[data-col="2"][data-row="0"] { background-position: 100%   0%; }
+    .tile[data-col="0"][data-row="1"] { background-position:   0%  50%; }
+    .tile[data-col="1"][data-row="1"] { background-position:  50%  50%; }
+    .tile[data-col="2"][data-row="1"] { background-position: 100%  50%; }
+    .tile[data-col="0"][data-row="2"] { background-position:   0% 100%; }
+    .tile[data-col="1"][data-row="2"] { background-position:  50% 100%; }
+    .tile[data-col="2"][data-row="2"] { background-position: 100% 100%; }
+
+    /* Video container — sits on top of .tile's background, no bg of its own */
+    .tile-inner {
+      position: absolute;
+      inset: 0;
+    }
+
+    /* Video opacity driven directly by scatter RAF — no CSS transition needed */
+    .tile-inner video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+    }
+
+    /* Dark overlay per tile */
+    .tile::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--overlay-color);
+      opacity: 0;
+      border-radius: inherit;
+      transition: opacity 0.6s ease;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* overlay stays at opacity: 0 — darkening effect removed */
+
+    /* Row label — flies in from the left when a tile in that row is hovered */
+    .row-label {
+      position: fixed;
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: clamp(11px, 1.1vw, 15px);
+      font-weight: 400;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      word-spacing: 0.2em;
+      color: #3d2f1e;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translate(-100px, -50%);
+      transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .row-label.visible {
+      opacity: 1;
+      transform: translate(0, -50%);
+    }
+
+  </style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="name">Deyan Tsvyatkov</div>
+  <div id="subtitle">Writer & director</div>
+  <div id="portrait-wrap">
+    <div id="tile-grid">
+      <div class="tile" data-col="0" data-row="0"><div class="tile-inner"><video src="Vi-1.mp4" loop muted playsinline preload="auto"></video></div></div>
+      <div class="tile" data-col="1" data-row="0"><div class="tile-inner"><video src="Far away from time.mp4" loop muted playsinline preload="auto"></video></div></div>
+      <div class="tile" data-col="2" data-row="0"><div class="tile-inner"><video src="The Object.mp4" loop muted playsinline preload="auto"></video></div></div>
+      <div class="tile" data-col="0" data-row="1"><div class="tile-inner"><video src="Payhawk Ai.mp4" loop muted playsinline preload="auto"></video></div></div>
+      <div class="tile" data-col="1" data-row="1"><div class="tile-inner"><video src="A small step.mp4" loop muted playsinline preload="auto"></video></div></div>
+      <div class="tile" data-col="2" data-row="1"><div class="tile-inner"><video src="Payhawk ad.mp4" loop muted playsinline preload="auto"></video></div></div>
+      <div class="tile" data-col="0" data-row="2"><div class="tile-inner"><video src="Snow.mp4" loop muted playsinline preload="auto"></video></div></div>
+      <div class="tile" data-col="1" data-row="2"><div class="tile-inner"><video src="Submarine.mp4" loop muted playsinline preload="auto"></video></div></div>
+      <div class="tile" data-col="2" data-row="2"><div class="tile-inner"><video src="Alien.mp4" loop muted playsinline preload="auto"></video></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="row-label-1" class="row-label">Short films</div>
+<div id="row-label-2" class="row-label">Ads / campaigns</div>
+<div id="row-label-3" class="row-label">Experimental</div>
+
+<div id="tweaks-root"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const IMG_SRC = 'Portrait.jpg';
+
+  // Declare core elements first — everything below depends on these
+  const wrap     = document.getElementById('portrait-wrap');
+  const tileGrid = document.getElementById('tile-grid');
+  const tiles    = Array.from(document.querySelectorAll('.tile'));
+
+  // Portrait background on each tile + assembled single-image overlay (no seams)
+  tiles.forEach(tile => {
+    tile.style.backgroundImage = `url('${IMG_SRC}')`;
+  });
+  tileGrid.style.setProperty('--portrait-src', `url('${IMG_SRC}')`);
+
+  // Video tile references
+  const videoTile  = tiles[0]; // col=0, row=0 — Vi-1.mp4
+  const videoInner = videoTile.querySelector('.tile-inner');
+  const video      = videoInner.querySelector('video');
+  const videoTile2  = tiles[1]; // col=1, row=0 — The Object.mp4
+  const videoInner2 = videoTile2.querySelector('.tile-inner');
+  const video2      = videoInner2.querySelector('video');
+  const videoTile3  = tiles[2]; // col=2, row=0 — Far away from time.mp4
+  const videoInner3 = videoTile3.querySelector('.tile-inner');
+  const video3      = videoInner3.querySelector('video');
+  const videoTile4  = tiles[3]; // col=0, row=1 — Payhawk Ai.mp4
+  const videoInner4 = videoTile4.querySelector('.tile-inner');
+  const video4      = videoInner4.querySelector('video');
+  const videoTile5  = tiles[4]; // col=1, row=1 — A small step.mp4
+  const videoInner5 = videoTile5.querySelector('.tile-inner');
+  const video5      = videoInner5.querySelector('video');
+  const videoTile6  = tiles[5]; // col=2, row=1 — Payhawk ad.mp4
+  const videoInner6 = videoTile6.querySelector('.tile-inner');
+  const video6      = videoInner6.querySelector('video');
+  const videoTile7  = tiles[6]; // col=0, row=2 — Snow.mp4
+  const videoInner7 = videoTile7.querySelector('.tile-inner');
+  const video7      = videoInner7.querySelector('video');
+  const videoTile8  = tiles[7]; // col=1, row=2 — Submarine.mp4
+  const videoInner8 = videoTile8.querySelector('.tile-inner');
+  const video8      = videoInner8.querySelector('video');
+  const videoTile9  = tiles[8]; // col=2, row=2 — Alien.mp4
+  const videoInner9 = videoTile9.querySelector('.tile-inner');
+  const video9      = videoInner9.querySelector('video');
+  let hoverController = null;
+
+  // Init name and subtitle position
+  const nameEl = document.getElementById('name');
+  const subtitleEl = document.getElementById('subtitle');
+  nameEl.style.opacity = '0';
+  nameEl.style.transform = 'translateX(-50%) translateY(80px)';
+  subtitleEl.style.opacity = '0';
+  subtitleEl.style.transform = 'translateX(-50%) translateY(80px)';
+
+  // Row labels — fly in from the left when any tile in their row is hovered
+  const ROW_LABEL_GAP = 80;
+  const rowLabels = [
+    { el: document.getElementById('row-label-1'), anchor: tiles[0], tilesInRow: [tiles[0], tiles[1], tiles[2]], hovered: new Set() },
+    { el: document.getElementById('row-label-2'), anchor: tiles[3], tilesInRow: [tiles[3], tiles[4], tiles[5]], hovered: new Set() },
+    { el: document.getElementById('row-label-3'), anchor: tiles[6], tilesInRow: [tiles[6], tiles[7], tiles[8]], hovered: new Set() },
+  ];
+  function positionRowLabel(row) {
+    const rect = row.anchor.getBoundingClientRect();
+    row.el.style.top   = `${rect.top + rect.height / 2}px`;
+    row.el.style.right = `${window.innerWidth - rect.left + ROW_LABEL_GAP}px`;
+  }
+
+  let hasScattered      = false;
+  let isProjectView     = false;
+  let activeProjectTile = null;
+
+  function closeProject() {
+    const overlay = document.getElementById('project-overlay');
+    const tile    = activeProjectTile;
+    if (!overlay || !tile) return;
+
+    // Tile is invisible but still at its scatter position — read it for the target rect
+    const tileRect    = tile.getBoundingClientRect();
+    const overlayRect = overlay.getBoundingClientRect();
+
+    // Reverse FLIP: animate overlay center → tile center, shrink to tile dimensions
+    const dx = tileRect.left   + tileRect.width  / 2 - (overlayRect.left + overlayRect.width  / 2);
+    const dy = tileRect.top    + tileRect.height / 2 - (overlayRect.top  + overlayRect.height / 2);
+    const sx = tileRect.width  / overlayRect.width;
+    const sy = tileRect.height / overlayRect.height;
+
+    overlay.style.transition   = 'transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.5s ease';
+    overlay.style.transform    = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+    overlay.style.borderRadius = '8px';
+
+    // Slide name + subtitle back to scatter position
+    const easing = 'cubic-bezier(0.22, 1, 0.36, 1)';
+    nameEl.style.transition     = `transform 0.7s ${easing}`;
+    subtitleEl.style.transition = `transform 0.7s ${easing}`;
+    nameEl.style.transform      = 'translateX(-50%) translateY(0)';
+    subtitleEl.style.transform  = 'translateX(-50%) translateY(0)';
+
+    // Bring other tiles home to their scatter positions
+    const W    = wrap.offsetWidth, H = wrap.offsetHeight;
+    const dist = window.__scatterEnergy || 0.15;
+    tiles.forEach((t, i) => {
+      if (t === tile) return;
+      t.style.transition = 'opacity 0.5s ease, translate 0.8s cubic-bezier(0.22, 1, 0.36, 1)';
+      t.style.opacity    = '1';
+      t.style.translate  = `${DIRS[i].x * W * dist}px ${DIRS[i].y * H * dist}px`;
+    });
+
+    // On transform complete: move video back, remove overlay, re-enable grid
+    function onEnd(e) {
+      if (e.propertyName !== 'transform') return;
+      overlay.removeEventListener('transitionend', onEnd);
+
+      const vid = overlay.querySelector('video');
+      if (vid) {
+        Object.assign(vid.style, {
+          position: 'absolute', inset: '0',
+          width: '100%', height: '100%',
+          objectFit: 'cover', opacity: '1',
+        });
+        tile.querySelector('.tile-inner').appendChild(vid);
+      }
+      tile.style.opacity = '1';
+      overlay.remove();
+
+      // Clear project-view transitions so applyScatter can drive these freely again
+      nameEl.style.transition     = '';
+      subtitleEl.style.transition = '';
+
+      isProjectView      = false;
+      activeProjectTile  = null;
+
+      // Re-enable all scatter interactions without re-animating (progress stays at 1)
+      hasScattered = false;
+      scatter();
+    }
+    overlay.addEventListener('transitionend', onEnd);
+  }
+
+  function openProject(tile) {
+    if (isProjectView) return;
+    isProjectView = true;
+
+    // Freeze scatter RAF
+    cancelAnimationFrame(rafId);
+    rafId = null;
+
+    // Release all hover/scale listeners
+    if (hoverController) { hoverController.abort(); hoverController = null; }
+    growTimers.forEach(id => clearTimeout(id));
+    growTimers = [];
+
+    // Capture visual rect first — includes any active scale transform
+    const tileRect = tile.getBoundingClientRect();
+    const vid      = tile.querySelector('video');
+
+    // Snap tile scales back to 1 so the FLIP math is clean
+    tiles.forEach(t => { t.style.transition = ''; t.style.scale = '1'; });
+
+    // Read current rects before any animation
+    const nameRect     = nameEl.getBoundingClientRect();
+    const subtitleRect = (subtitleEl.offsetWidth > 0 ? subtitleEl : nameEl).getBoundingClientRect();
+
+    // A = desired top margin (= gap below subtitle to thumbnail).
+    // Halve the scatter-state top margin so both spaces are 50% smaller.
+    const SHIFT_UP = Math.round(window.innerHeight * 0.03);
+    const A        = (nameRect.top - SHIFT_UP) / 2;          // 50% of previous A
+    const shift    = nameRect.top - A;                        // actual upward displacement
+
+    const easing = 'cubic-bezier(0.22, 1, 0.36, 1)';
+    nameEl.style.transition     = `transform 0.7s ${easing}`;
+    subtitleEl.style.transition = `transform 0.7s ${easing}`;
+    nameEl.style.transform      = `translateX(-50%) translateY(-${shift}px)`;
+    subtitleEl.style.transform  = `translateX(-50%) translateY(-${shift}px)`;
+
+    // targetT satisfies: gap_below_subtitle = A = top_margin_above_name
+    const gridW   = wrap.getBoundingClientRect().width;
+    const targetW = gridW * 1.2;
+    const targetH = targetW * 9 / 16;
+    const targetL = window.innerWidth / 2 - targetW / 2;
+    const targetT = (subtitleRect.bottom - shift) + A;
+
+    // Fixed overlay lives at target position
+    const overlay = document.createElement('div');
+    overlay.id = 'project-overlay';
+    Object.assign(overlay.style, {
+      position:     'fixed',
+      left:         `${targetL}px`,
+      top:          `${targetT}px`,
+      width:        `${targetW}px`,
+      height:       `${targetH}px`,
+      borderRadius: '12px',
+      overflow:     'hidden',
+      zIndex:       '50',
+      willChange:   'transform',
+    });
+
+    // Move actual <video> into overlay — playback continues uninterrupted
+    if (vid) {
+      Object.assign(vid.style, {
+        position: 'absolute', inset: '0',
+        width: '100%', height: '100%',
+        objectFit: 'cover', opacity: '1',
+      });
+      overlay.appendChild(vid);
+      vid.play();
+    }
+
+    activeProjectTile = tile;
+    document.body.appendChild(overlay);
+    tile.style.opacity = '0'; // hide the now-empty tile slot
+
+    overlay.style.cursor = 'pointer';
+    overlay.addEventListener('click', closeProject);
+
+    // FLIP: transform overlay so it visually starts at the tile's current screen rect
+    const dx = tileRect.left + tileRect.width  / 2 - (targetL + targetW / 2);
+    const dy = tileRect.top  + tileRect.height / 2 - (targetT + targetH / 2);
+    const sx = tileRect.width  / targetW;
+    const sy = tileRect.height / targetH;
+    overlay.style.transformOrigin = 'center center';
+    overlay.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+
+    // Other tiles scatter further and fade out
+    const W = wrap.offsetWidth, H = wrap.offsetHeight;
+    tiles.forEach((t, i) => {
+      if (t === tile) return;
+      t.style.transition = 'opacity 0.4s ease, translate 0.7s cubic-bezier(0.22,1,0.36,1)';
+      t.style.opacity    = '0';
+      const d = DIRS[i];
+      t.style.translate  = `${d.x * W * 0.55}px ${d.y * H * 0.55}px`;
+    });
+
+    // Dismiss row labels and clear stale hover state so re-entry is clean
+    rowLabels.forEach(row => {
+      row.hovered.clear();
+      row.el.classList.remove('visible');
+    });
+
+    // Play the FLIP animation to target
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        overlay.style.transition = 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.5s ease';
+        overlay.style.transform  = 'none';
+      });
+    });
+  }
+
+  const DIRS = [
+    { x: -1, y: -1 }, { x:  0, y: -1 }, { x:  1, y: -1 },
+    { x: -1, y:  0 }, { x:  0, y:  0 }, { x:  1, y:  0 },
+    { x: -1, y:  1 }, { x:  0, y:  1 }, { x:  1, y:  1 },
+  ];
+
+  const RATIO_START = 1.501;
+  const RATIO_END   = 1.7778;
+  // Vertical offset so top margin (above name) equals bottom margin (below bottom tiles).
+  // Derivation: total_shift = nameBottom_gap + name_height ≈ 72 + ~28px = 100px;
+  // GRID_Y_OFFSET = total_shift − bottomShift = 100 − 0.025·innerHeight
+  const GRID_Y_OFFSET = Math.max(50, 100 - 0.02857 * window.innerHeight);
+  let progress = 0;
+  let rafId = null;
+  let growTimers = [];
+  window.__scatterProgress = 0;
+
+  function applyScatter(p) {
+    window.__scatterProgress = p;
+    const H = wrap.offsetHeight;
+    const ratio = RATIO_START + (RATIO_END - RATIO_START) * p;
+    const W = H * ratio;
+    wrap.style.width = `${W}px`;
+    const dist = window.__scatterEnergy || 0.15;
+
+    // Tiles scatter outward; grid drifts down slightly for vertical balance
+    const bottomShift = H * dist * 0.4 * p;
+    tiles.forEach((tile, i) => {
+      tile.style.translate = `${DIRS[i].x * W * dist * p}px ${DIRS[i].y * H * dist * p}px`;
+    });
+    wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
+
+    // Assembled overlay fades out as tiles scatter (gone by p=0.5)
+    tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p * 2)));
+    // Video tiles crossfade from portrait → first frame as scatter progresses
+    video.style.opacity  = String(p);
+    video2.style.opacity = String(p);
+    video3.style.opacity = String(p);
+    video4.style.opacity = String(p);
+    video5.style.opacity = String(p);
+    video6.style.opacity = String(p);
+    video7.style.opacity = String(p);
+    video8.style.opacity = String(p);
+    video9.style.opacity = String(p);
+
+    // Gap between tiles grows with scatter progress
+    tileGrid.style.gap = `${Math.round(p * 10)}px`;
+
+    // Keep row labels glued to their anchor tiles while visible
+    rowLabels.forEach(row => {
+      if (row.el.classList.contains('visible')) positionRowLabel(row);
+    });
+
+    // Name rises from below into place above grid, left-aligned.
+    // Bottom offset grows to clear the top tiles as they move up.
+    const topTileUp = H * dist * p;
+    const nameBottom = 68 + topTileUp + 4;
+    const nameY = 80 * (1 - p);
+    nameEl.style.bottom = `calc(100% + ${nameBottom}px)`;
+    nameEl.style.opacity = p;
+    nameEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
+
+    // Subtitle rises in sync with name, positioned below
+    const subtitleBottom = nameBottom - 38;
+    subtitleEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
+    subtitleEl.style.opacity = p;
+    subtitleEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
+  }
+
+  function scatter() {
+    if (hasScattered) return;
+    hasScattered = true;
+
+    // Set up all interactions immediately — no need to wait for scatter to complete.
+    // RAF drives tile.style.translate; hover drives tile.style.scale — they compose independently.
+    hoverController = new AbortController();
+    const { signal } = hoverController;
+    const BORDER_T  = 'border-radius 0.7s cubic-bezier(0.22,1,0.36,1), filter 1s ease';
+    const GROW_POP  = `${BORDER_T}, scale 0.4s cubic-bezier(0.22,1,0.36,1)`;
+    const GROW_SLOW = `${BORDER_T}, scale 10s linear`;
+    const GROW_OUT  = `${BORDER_T}, scale 0.8s ease-out`;
+
+    tiles.forEach(t => {
+      let growTimer = null;
+
+      const startGrow = () => {
+        clearTimeout(growTimer);
+        t.style.transition = GROW_POP;
+        t.style.scale = '1.25';
+        growTimer = setTimeout(() => {
+          if (t.matches(':hover')) {
+            t.style.transition = GROW_SLOW;
+            t.style.scale = '1.6';
+          }
+        }, 400);
+        growTimers.push(growTimer);
+      };
+      const stopGrow = () => {
+        clearTimeout(growTimer);
+        t.style.transition = GROW_OUT;
+        t.style.scale = '1';
+      };
+
+      t.addEventListener('mouseenter', startGrow, { signal });
+      t.addEventListener('mouseleave', stopGrow,  { signal });
+      if (t.matches(':hover')) startGrow();
+    });
+
+    // Fade all tiles except the active one to B&W; restore all when playback stops
+    const fadeOthers = active => tiles.forEach(t => {
+      t.style.filter = t === active ? '' : 'grayscale(1)';
+    });
+    const restoreAll = () => tiles.forEach(t => { t.style.filter = ''; });
+
+    // Video tiles: play/pause + fade others to B&W
+    const videoTiles = [
+      { tile: videoTile,  vid: video  },
+      { tile: videoTile2, vid: video2 },
+      { tile: videoTile3, vid: video3 },
+      { tile: videoTile4, vid: video4 },
+      { tile: videoTile5, vid: video5 },
+      { tile: videoTile6, vid: video6 },
+      { tile: videoTile7, vid: video7 },
+      { tile: videoTile8, vid: video8 },
+      { tile: videoTile9, vid: video9 },
+    ];
+    videoTiles.forEach(({ tile, vid }) => {
+      const enter = () => { vid.play();  fadeOthers(tile); };
+      const leave = () => { vid.pause(); restoreAll(); };
+      tile.addEventListener('mouseenter', enter, { signal });
+      tile.addEventListener('mouseleave', leave, { signal });
+      if (tile.matches(':hover')) enter();
+    });
+
+    // Row labels: show/hide as any tile in the row is hovered
+    rowLabels.forEach(row => {
+      row.tilesInRow.forEach(tile => {
+        const enter = () => {
+          row.hovered.add(tile);
+          positionRowLabel(row);
+          row.el.classList.add('visible');
+        };
+        const leave = () => {
+          row.hovered.delete(tile);
+          if (row.hovered.size === 0) row.el.classList.remove('visible');
+        };
+        tile.addEventListener('mouseenter', enter, { signal });
+        tile.addEventListener('mouseleave', leave, { signal });
+        if (tile.matches(':hover')) enter();
+      });
+    });
+
+    // Click → enter project view
+    tiles.forEach(t => {
+      t.addEventListener('click', () => openProject(t), { signal });
+    });
+
+    wrap.removeEventListener('mouseenter', onMouseEnter);
+    window.removeEventListener('wheel', onWheel);
+    window.removeEventListener('touchmove', onTouchMove);
+
+    cancelAnimationFrame(rafId);
+    function step() {
+      const ease = window.__scatterEase || 0.075;
+      progress += (1 - progress) * ease;
+      if (1 - progress < 0.001) {
+        progress = 1;
+        applyScatter(1);
+        tiles.forEach(t => t.classList.add('scattered'));
+        return;
+      }
+      applyScatter(progress);
+      if (progress > 0.05) tiles.forEach(t => t.classList.add('scattered'));
+      rafId = requestAnimationFrame(step);
+    }
+    step();
+  }
+
+  // Exposed for tweaks reset button
+  window.__resetScatter = function () {
+    hasScattered = false;
+    progress = 0;
+    if (hoverController) { hoverController.abort(); hoverController = null; }
+    growTimers.forEach(id => clearTimeout(id));
+    growTimers = [];
+    rowLabels.forEach(row => {
+      row.hovered.clear();
+      row.el.classList.remove('visible');
+    });
+    tiles.forEach(t => {
+      t.classList.remove('scattered');
+      t.style.transition = '';
+      t.style.translate  = '';
+      t.style.scale      = '';
+      t.style.filter     = '';
+    });
+    video.pause();
+    video.currentTime   = 0;
+    video.style.opacity = '0';
+    video2.pause();
+    video2.currentTime   = 0;
+    video2.style.opacity = '0';
+    video3.pause();
+    video3.currentTime   = 0;
+    video3.style.opacity = '0';
+    video4.pause();
+    video4.currentTime   = 0;
+    video4.style.opacity = '0';
+    video5.pause();
+    video5.currentTime   = 0;
+    video5.style.opacity = '0';
+    video6.pause();
+    video6.currentTime   = 0;
+    video6.style.opacity = '0';
+    video7.pause();
+    video7.currentTime   = 0;
+    video7.style.opacity = '0';
+    video8.pause();
+    video8.currentTime   = 0;
+    video8.style.opacity = '0';
+    video9.pause();
+    video9.currentTime   = 0;
+    video9.style.opacity = '0';
+    tileGrid.style.filter = '';
+    tileGrid.style.setProperty('--assembled-opacity', '1');
+    wrap.style.transform = '';
+    wrap.style.width = `${wrap.offsetHeight * RATIO_START}px`;
+    window.__scatterProgress = 0;
+    tileGrid.style.gap = '0px';
+    nameEl.style.opacity = '0';
+    nameEl.style.transform = 'translateX(-50%) translateY(80px)';
+    nameEl.style.bottom = 'calc(100% + 68px)';
+    wrap.addEventListener('mouseenter', onMouseEnter);
+    window.addEventListener('wheel', onWheel, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+  };
+
+  function onMouseEnter() { scatter(); }
+  function onWheel(e) { if (e.deltaY > 10) scatter(); }
+  let touchY0 = null;
+  function onTouchMove(e) {
+    if (touchY0 === null) return;
+    if (touchY0 - e.touches[0].clientY > 30) scatter();
+  }
+
+  window.addEventListener('touchstart', e => { touchY0 = e.touches[0].clientY; }, { passive: true });
+  wrap.addEventListener('mouseenter', onMouseEnter);
+  window.addEventListener('wheel', onWheel, { passive: true });
+  window.addEventListener('touchmove', onTouchMove, { passive: true });
+});
+</script>
+
+<script>
+// Tweaks panel — pre-compiled from JSX, no build step needed
+const __TWEAKS_STYLE = `
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:rgba(250,249,247,.78);color:#29261b;-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);border:.5px solid rgba(255,255,255,.6);border-radius:14px;box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;overflow-x:hidden;min-height:0;scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:6px 0;border-radius:999px;background:rgba(0,0,0,.12);outline:none}
+  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;background:rgba(0,0,0,.06);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;overflow-wrap:anywhere}
+  .twk-btn{appearance:none;height:26px;padding:0 12px;border:0;border-radius:7px;background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:default}
+  .twk-btn:hover{background:rgba(0,0,0,.88)}
+`;
+
+function useTweaks(defaults) {
+  const [values, setValues] = React.useState(defaults);
+  const setTweak = React.useCallback((keyOrEdits, val) => {
+    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null ? keyOrEdits : { [keyOrEdits]: val };
+    setValues(prev => ({ ...prev, ...edits }));
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+  }, []);
+  return [values, setTweak];
+}
+
+function TweaksPanel({ title = 'Tweaks', children }) {
+  const [open, setOpen] = React.useState(false);
+  const dragRef = React.useRef(null);
+  const offsetRef = React.useRef({ x: 16, y: 16 });
+  const PAD = 16;
+  const clamp = React.useCallback(() => {
+    const p = dragRef.current; if (!p) return;
+    const maxR = Math.max(PAD, window.innerWidth - p.offsetWidth - PAD);
+    const maxB = Math.max(PAD, window.innerHeight - p.offsetHeight - PAD);
+    offsetRef.current = { x: Math.min(maxR, Math.max(PAD, offsetRef.current.x)), y: Math.min(maxB, Math.max(PAD, offsetRef.current.y)) };
+    p.style.right = offsetRef.current.x + 'px'; p.style.bottom = offsetRef.current.y + 'px';
+  }, []);
+  React.useEffect(() => {
+    const onMsg = e => {
+      if (e?.data?.type === '__activate_edit_mode') setOpen(true);
+      else if (e?.data?.type === '__deactivate_edit_mode') setOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+  React.useEffect(() => { if (open) clamp(); }, [open, clamp]);
+  const dismiss = () => { setOpen(false); window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*'); };
+  const onDragStart = e => {
+    const p = dragRef.current; if (!p) return;
+    const r = p.getBoundingClientRect(), sx = e.clientX, sy = e.clientY;
+    const sr = window.innerWidth - r.right, sb = window.innerHeight - r.bottom;
+    const move = ev => { offsetRef.current = { x: sr-(ev.clientX-sx), y: sb-(ev.clientY-sy) }; clamp(); };
+    const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+  };
+  if (!open) return null;
+  return React.createElement(React.Fragment, null,
+    React.createElement('style', null, __TWEAKS_STYLE),
+    React.createElement('div', { ref: dragRef, className: 'twk-panel', style: { right: offsetRef.current.x, bottom: offsetRef.current.y } },
+      React.createElement('div', { className: 'twk-hd', onMouseDown: onDragStart },
+        React.createElement('b', null, title),
+        React.createElement('button', { className: 'twk-x', onMouseDown: e => e.stopPropagation(), onClick: dismiss }, '✕')
+      ),
+      React.createElement('div', { className: 'twk-body' }, children)
+    )
+  );
+}
+
+function TweakSection({ label }) { return React.createElement('div', { className: 'twk-sect' }, label); }
+
+function TweakRow({ label, value, children }) {
+  return React.createElement('div', { className: 'twk-row' },
+    React.createElement('div', { className: 'twk-lbl' },
+      React.createElement('span', null, label),
+      value != null && React.createElement('span', { className: 'twk-val' }, value)
+    ), children);
+}
+
+function TweakSlider({ label, value, min=0, max=100, step=1, unit='', onChange }) {
+  return React.createElement(TweakRow, { label, value: value+unit },
+    React.createElement('input', { type: 'range', className: 'twk-slider', min, max, step, value, onChange: e => onChange(Number(e.target.value)) })
+  );
+}
+
+function TweakRadio({ label, value, options, onChange }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+  const opts = options.map(o => typeof o === 'object' ? o : { value: o, label: o });
+  const idx = Math.max(0, opts.findIndex(o => o.value === value));
+  const n = opts.length;
+  const valueRef = React.useRef(value); valueRef.current = value;
+  const segAt = cx => { const r = trackRef.current.getBoundingClientRect(); return opts[Math.max(0,Math.min(n-1,Math.floor(((cx-r.left-2)/(r.width-4))*n)))].value; };
+  const onPointerDown = e => {
+    setDragging(true);
+    const v0 = segAt(e.clientX); if (v0 !== valueRef.current) onChange(v0);
+    const move = ev => { const v = segAt(ev.clientX); if (v !== valueRef.current) onChange(v); };
+    const up = () => { setDragging(false); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
+  return React.createElement(TweakRow, { label },
+    React.createElement('div', { ref: trackRef, role: 'radiogroup', onPointerDown, className: dragging ? 'twk-seg dragging' : 'twk-seg' },
+      React.createElement('div', { className: 'twk-seg-thumb', style: { left: `calc(2px + ${idx} * (100% - 4px) / ${n})`, width: `calc((100% - 4px) / ${n})` } }),
+      opts.map(o => React.createElement('button', { key: o.value, type: 'button', role: 'radio', 'aria-checked': o.value===value }, o.label))
+    )
+  );
+}
+
+function TweakButton({ label, onClick, secondary=false }) {
+  return React.createElement('button', { type: 'button', className: secondary ? 'twk-btn secondary' : 'twk-btn', onClick }, label);
+}
+
+// Mount tweaks
+(function mountTweaks() {
+  if (!document.getElementById('tweaks-root') || typeof useTweaks === 'undefined') {
+    setTimeout(mountTweaks, 50);
+    return;
+  }
+
+  const TWEAK_DEFAULTS = {
+    mood: 'Haze',
+    scatterEnergy: 10,
+    portraitScale: 'Intimate'
+  };
+
+  const MOODS = {
+    Stark: { bg: '#e4e4e2', overlay: '#050505', nameColor: '#111',    cursor: '#111'    },
+    Warm:  { bg: '#c4bfb8', overlay: '#1a1712', nameColor: '#1a1712', cursor: '#1a1712' },
+    Haze:  { bg: '#ccc5ba', overlay: '#2a1f14', nameColor: '#3d2f1e', cursor: '#3d2f1e' },
+  };
+  const SCALES = { Intimate: '36vh', Standard: '48vh', Monumental: '62vh' };
+
+  function applyTweaks(t) {
+    const mood  = MOODS[t.mood] || MOODS.Haze;
+    const scale = SCALES[t.portraitScale] || SCALES.Intimate;
+    const energy = t.scatterEnergy / 100;
+
+    document.documentElement.style.setProperty('--bg-color', mood.bg);
+    document.documentElement.style.setProperty('--overlay-color', mood.overlay);
+    document.body.style.background = mood.bg;
+
+    const nameEl = document.getElementById('name');
+    if (nameEl) nameEl.style.color = mood.nameColor;
+
+    const cursorEl = document.getElementById('cursor');
+    if (cursorEl) cursorEl.style.background = mood.cursor;
+
+    const wrapEl = document.getElementById('portrait-wrap');
+    if (wrapEl) {
+      wrapEl.style.height = scale;
+      const heightPx = parseFloat(scale) / 100 * window.innerHeight;
+      const ratio = 1.501 + (1.7778 - 1.501) * (window.__scatterProgress || 0);
+      wrapEl.style.width = `${heightPx * ratio}px`;
+    }
+
+    window.__scatterEnergy = 0.06 + energy * 0.18;
+    window.__scatterEase   = 0.045 + energy * 0.085;
+  }
+
+  applyTweaks(TWEAK_DEFAULTS);
+
+  function TweaksApp() {
+    const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+    React.useEffect(() => { applyTweaks(tweaks); }, [tweaks]);
+    return React.createElement(TweaksPanel, null,
+      React.createElement(TweakSection, { label: 'Mood' }),
+      React.createElement(TweakRadio, { options: ['Stark','Warm','Haze'], value: tweaks.mood, onChange: v => setTweak('mood', v) }),
+      React.createElement(TweakSection, { label: 'Scatter energy' }),
+      React.createElement(TweakSlider, { label: 'Energy', min: 10, max: 100, step: 1, value: tweaks.scatterEnergy, onChange: v => setTweak('scatterEnergy', v) }),
+      React.createElement(TweakSection, { label: 'Portrait scale' }),
+      React.createElement(TweakRadio, { options: ['Intimate','Standard','Monumental'], value: tweaks.portraitScale, onChange: v => setTweak('portraitScale', v) }),
+      React.createElement(TweakSection, { label: 'Preview' }),
+      React.createElement(TweakButton, { label: 'Reset scatter', onClick: () => window.__resetScatter && window.__resetScatter() })
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('tweaks-root')).render(React.createElement(TweaksApp));
+})();
+</script>
+</body>
+</html>
