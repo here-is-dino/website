@@ -1022,8 +1022,24 @@ document.addEventListener('DOMContentLoaded', function () {
       { tile: videoTile9, vid: video9 },
     ];
     videoTiles.forEach(({ tile, vid }) => {
-      const enter = () => { vid.play();  fadeOthers(tile); };
-      const leave = () => { vid.pause(); restoreAll(); };
+      const inner  = tile.querySelector('.tile-inner');
+      const poster = vid.getAttribute('poster');
+      const enter = () => {
+        // Pin poster as CSS background so it stays visible even if the browser
+        // clears the <video> poster attribute when play() is called on a slow connection
+        if (inner && poster) {
+          inner.style.backgroundImage    = `url('${poster}')`;
+          inner.style.backgroundSize     = 'cover';
+          inner.style.backgroundPosition = 'center';
+        }
+        vid.play();
+        fadeOthers(tile);
+      };
+      const leave = () => {
+        vid.pause();
+        if (inner) inner.style.backgroundImage = '';
+        restoreAll();
+      };
       tile.addEventListener('mouseenter', enter, { signal });
       tile.addEventListener('mouseleave', leave, { signal });
       if (tile.matches(':hover')) enter();
