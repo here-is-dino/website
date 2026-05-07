@@ -1031,15 +1031,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Row labels: show/hide as any tile in the row is hovered
     rowLabels.forEach(row => {
+      let hideTimer = null;
       row.tilesInRow.forEach(tile => {
         const enter = () => {
+          clearTimeout(hideTimer);
           row.hovered.add(tile);
-          positionRowLabel(row);
+          // Only reposition when the label first appears — not while already visible,
+          // since the anchor tile's scaled rect would cause a jump between thumbnails.
+          if (!row.el.classList.contains('visible')) positionRowLabel(row);
           row.el.classList.add('visible');
         };
         const leave = () => {
           row.hovered.delete(tile);
-          if (row.hovered.size === 0) row.el.classList.remove('visible');
+          if (row.hovered.size === 0) {
+            hideTimer = setTimeout(() => row.el.classList.remove('visible'), 200);
+          }
         };
         tile.addEventListener('mouseenter', enter, { signal });
         tile.addEventListener('mouseleave', leave, { signal });
@@ -1164,7 +1170,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // If the cursor was already over the portrait when the delay expired, scatter now
     if (wrap.matches(':hover')) { clearTimeout(autoScatterTimer); scatter(); }
-  }, 400);
+  }, 500);
 
   // Browser back/forward buttons and trackpad swipes
   window.addEventListener('popstate', (e) => {
