@@ -1146,9 +1146,25 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   window.addEventListener('touchstart', e => { touchY0 = e.touches[0].clientY; }, { passive: true });
-  wrap.addEventListener('mouseenter', onMouseEnter);
-  window.addEventListener('wheel', onWheel, { passive: true });
-  window.addEventListener('touchmove', onTouchMove, { passive: true });
+
+  // Delay scatter triggers by 0.6 s to buffer video first frames on slow connections.
+  // If the user hasn't hovered within 3 s, scatter fires automatically.
+  const autoScatterTimer = setTimeout(() => scatter(), 4000);
+
+  setTimeout(() => {
+    wrap.addEventListener('mouseenter', onMouseEnter);
+    window.addEventListener('wheel', onWheel, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+
+    // Cancel auto-scatter as soon as the user interacts manually
+    const cancelAuto = () => clearTimeout(autoScatterTimer);
+    wrap.addEventListener('mouseenter', cancelAuto, { once: true });
+    window.addEventListener('wheel',     cancelAuto, { once: true, passive: true });
+    window.addEventListener('touchmove', cancelAuto, { once: true, passive: true });
+
+    // If the cursor was already over the portrait when the delay expired, scatter now
+    if (wrap.matches(':hover')) { clearTimeout(autoScatterTimer); scatter(); }
+  }, 400);
 
   // Browser back/forward buttons and trackpad swipes
   window.addEventListener('popstate', (e) => {
