@@ -318,8 +318,8 @@
         width:  calc(54vw * 1.501) !important;
         height: 54vw !important;
       }
-      /* Explicit stage width so flexbox centres it correctly */
-      #stage { width: calc(54vw * 1.501); }
+      /* Explicit stage width + margin:auto for reliable centering */
+      #stage { width: calc(54vw * 1.501); margin: 0 auto; }
 
       /* 2-column grid — hide the rightmost column, tighter gap */
       #tile-grid { grid-template-columns: 1fr 1fr; gap: 4px !important; }
@@ -791,7 +791,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let targetL, targetW, targetH, targetT;
     if (isFullscreen) {
       targetL = 0; targetT = 0;
-      targetW = window.innerWidth; targetH = Math.round(window.innerHeight * 0.6);
+      targetW = window.innerWidth; targetH = Math.round(window.innerHeight * 0.48);
     } else {
       const baseW = gridW * 1.2;
       targetL = Math.round(window.innerWidth / 2 - baseW / 2);
@@ -1238,8 +1238,9 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }
 
-    // Row labels: show/hide as any tile in the row is hovered
-    rowLabels.forEach(row => {
+    // Row labels: desktop only (hidden + disabled on mobile)
+    if (isMobile) rowLabels.forEach(row => { row.el.style.display = 'none'; });
+    if (!isMobile) rowLabels.forEach(row => {
       let hideTimer = null;
       row.tilesInRow.forEach(tile => {
         const enter = () => {
@@ -1260,7 +1261,7 @@ document.addEventListener('DOMContentLoaded', function () {
         tile.addEventListener('mouseleave', leave, { signal });
         if (tile.matches(':hover')) enter();
       });
-    });
+    }); // end if (!isMobile) rowLabels
 
     // Desktop: click → enter project view (mobile uses two-tap, handled above)
     if (!isMobile) {
