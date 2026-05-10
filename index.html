@@ -807,7 +807,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let targetL, targetW, targetH, targetT;
     if (isFullscreen) {
       targetL = 0; targetT = 0;
-      targetW = window.innerWidth; targetH = Math.round(window.innerHeight * 0.48);
+      targetW = window.innerWidth;
+      // Mobile: 20% smaller so more content is visible without scrolling
+      targetH = Math.round(window.innerHeight * (isMobile ? 0.384 : 0.48));
     } else {
       const baseW = gridW * 1.2;
       targetL = Math.round(window.innerWidth / 2 - baseW / 2);
@@ -1022,10 +1024,11 @@ document.addEventListener('DOMContentLoaded', function () {
           requestAnimationFrame(() => requestAnimationFrame(() => { contentEl.style.opacity = '1'; }));
         }
 
-        // Move overlay into scroll container so the video scrolls with the content
+        // Desktop: move overlay into scroll container so the video scrolls with content.
+        // Mobile: overlay stays position:fixed (paddingTop on scrollEl acts as spacer).
         const scrollEl = document.getElementById('project-scroll');
-        if (isFullscreen && scrollEl) {
-          scrollEl.style.paddingTop = ''; // padding no longer needed — overlay takes that space
+        if (isFullscreen && scrollEl && !isMobile) {
+          scrollEl.style.paddingTop = ''; // overlay takes that space now
           Object.assign(overlay.style, {
             position:      'relative',
             top:           '', left:    '',
