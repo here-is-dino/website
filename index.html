@@ -311,6 +311,22 @@
       padding: 56px 0 48px;
     }
 
+    /* ── Mobile ─────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+        /* Portrait fills the screen width with correct aspect ratio */
+      #portrait-wrap {
+        width:  calc(54vw * 1.501) !important;
+        height: 54vw !important;
+      }
+
+      /* 2-column grid — hide the rightmost column of tiles */
+      #tile-grid { grid-template-columns: 1fr 1fr; }
+      .tile[data-col="2"] { display: none; }
+
+      /* Row labels don't make sense without hover */
+      .row-label { display: none; }
+    }
+
   </style>
 </head>
 <body>
@@ -361,6 +377,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const IMG_SRC = 'Portrait.jpg';
 
   // Declare core elements first — everything below depends on these
+  const isMobile = window.matchMedia('(pointer: coarse)').matches;
+
   const wrap     = document.getElementById('portrait-wrap');
   const tileGrid = document.getElementById('tile-grid');
   const tiles    = Array.from(document.querySelectorAll('.tile'));
@@ -496,6 +514,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   let hasScattered      = false;
   let isProjectView     = false;
+  let scatterComplete   = false;
   let activeProjectTile = null;
   let lastProjectTile   = null; // retained after close for forward navigation
 
@@ -634,7 +653,8 @@ document.addEventListener('DOMContentLoaded', function () {
       isProjectView      = false;
       activeProjectTile  = null;
 
-      hasScattered = false;
+      hasScattered    = false;
+      scatterComplete = false;
       scatter();
     }
     overlay.addEventListener('transitionend', onEnd);
@@ -992,7 +1012,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.__scatterProgress = p;
     const H = wrap.offsetHeight;
     const ratio = RATIO_START + (RATIO_END - RATIO_START) * p;
-    const W = H * ratio;
+    const W = isMobile ? Math.min(H * ratio, window.innerWidth * 0.96) : H * ratio;
     wrap.style.width = `${W}px`;
     const dist = window.__scatterEnergy || 0.15;
 
@@ -1065,15 +1085,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const GROW_SLOW = `${BORDER_T}, scale 10s linear`;
     const GROW_OUT  = `${BORDER_T}, scale 0.8s ease-out`;
 
+    // Per-tile grow controls — stored so mobile can call them from touch handlers
+    const tileControls = new Map();
+
     tiles.forEach(t => {
       let growTimer = null;
-
       const startGrow = () => {
         clearTimeout(growTimer);
         t.style.transition = GROW_POP;
         t.style.scale = '1.25';
         growTimer = setTimeout(() => {
-          if (t.matches(':hover')) {
+          if (!isMobile && t.matches(':hover')) {
             t.style.transition = GROW_SLOW;
             t.style.scale = '1.6';
           }
@@ -1085,10 +1107,13 @@ document.addEventListener('DOMContentLoaded', function () {
         t.style.transition = GROW_OUT;
         t.style.scale = '1';
       };
+      tileControls.set(t, { startGrow, stopGrow });
 
-      t.addEventListener('mouseenter', startGrow, { signal });
-      t.addEventListener('mouseleave', stopGrow,  { signal });
-      if (t.matches(':hover')) startGrow();
+      if (!isMobile) {
+        t.addEventListener('mouseenter', startGrow, { signal });
+        t.addEventListener('mouseleave', stopGrow,  { signal });
+        if (t.matches(':hover')) startGrow();
+      }
     });
 
     // Fade all tiles except the active one to B&W; restore all when playback stops
@@ -1109,29 +1134,72 @@ document.addEventListener('DOMContentLoaded', function () {
       { tile: videoTile8, vid: video8 },
       { tile: videoTile9, vid: video9 },
     ];
-    videoTiles.forEach(({ tile, vid }) => {
-      const inner  = tile.querySelector('.tile-inner');
-      const poster = vid.getAttribute('poster');
-      const enter = () => {
-        // Pin poster as CSS background so it stays visible even if the browser
-        // clears the <video> poster attribute when play() is called on a slow connection
-        if (inner && poster) {
-          inner.style.backgroundImage    = `url('${poster}')`;
-          inner.style.backgroundSize     = 'cover';
-          inner.style.backgroundPosition = 'center';
-        }
-        vid.play();
-        fadeOthers(tile);
-      };
-      const leave = () => {
-        vid.pause();
-        if (inner) inner.style.backgroundImage = '';
-        restoreAll();
-      };
-      tile.addEventListener('mouseenter', enter, { signal });
-      tile.addEventListener('mouseleave', leave, { signal });
-      if (tile.matches(':hover')) enter();
-    });
+
+    if (!isMobile) {
+      videoTiles.forEach(({ tile, vid }) => {
+        const inner  = tile.querySelector('.tile-inner');
+        const poster = vid.getAttribute('poster');
+        const enter = () => {
+          if (inner && poster) {
+            inner.style.backgroundImage    = `url('${poster}')`;
+            inner.style.backgroundSize     = 'cover';
+            inner.style.backgroundPosition = 'center';
+          }
+          vid.play();
+          fadeOthers(tile);
+        };
+        const leave = () => {
+          vid.pause();
+          if (inner) inner.style.backgroundImage = '';
+          restoreAll();
+        };
+        tile.addEventListener('mouseenter', enter, { signal });
+        tile.addEventListener('mouseleave', leave, { signal });
+        if (tile.matches(':hover')) enter();
+      });
+    } else {
+      // Mobile: first tap → zoom + video; second tap → project page
+      let mobileTapTile = null;
+
+      videoTiles.forEach(({ tile, vid }) => {
+        const inner  = tile.querySelector('.tile-inner');
+        const poster = vid.getAttribute('poster');
+        const { startGrow, stopGrow } = tileControls.get(tile);
+
+        tile.addEventListener('touchend', (e) => {
+          if (!scatterComplete) return;
+          e.preventDefault(); // prevent ghost click
+
+          if (mobileTapTile !== tile) {
+            // Deactivate previously active tile
+            if (mobileTapTile) {
+              const { stopGrow: prevStop } = tileControls.get(mobileTapTile);
+              prevStop();
+              const prevEntry = videoTiles.find(v => v.tile === mobileTapTile);
+              if (prevEntry) {
+                prevEntry.vid.pause();
+                const prevInner = mobileTapTile.querySelector('.tile-inner');
+                if (prevInner) prevInner.style.backgroundImage = '';
+              }
+              restoreAll();
+            }
+            // Activate this tile
+            mobileTapTile = tile;
+            startGrow();
+            if (inner && poster) {
+              inner.style.backgroundImage    = `url('${poster}')`;
+              inner.style.backgroundSize     = 'cover';
+              inner.style.backgroundPosition = 'center';
+            }
+            vid.play().catch(() => {});
+            fadeOthers(tile);
+          } else {
+            // Second tap on same tile → open project page
+            openProject(tile);
+          }
+        }, { signal, passive: false });
+      });
+    }
 
     // Row labels: show/hide as any tile in the row is hovered
     rowLabels.forEach(row => {
@@ -1157,10 +1225,12 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     });
 
-    // Click → enter project view
-    tiles.forEach(t => {
-      t.addEventListener('click', () => openProject(t), { signal });
-    });
+    // Desktop: click → enter project view (mobile uses two-tap, handled above)
+    if (!isMobile) {
+      tiles.forEach(t => {
+        t.addEventListener('click', () => openProject(t), { signal });
+      });
+    }
 
     // Name/subtitle hover animation disabled — re-enable later
 
@@ -1176,6 +1246,7 @@ document.addEventListener('DOMContentLoaded', function () {
         progress = 1;
         applyScatter(1);
         tiles.forEach(t => t.classList.add('scattered'));
+        scatterComplete = true;
         return;
       }
       applyScatter(progress);
@@ -1268,18 +1339,25 @@ document.addEventListener('DOMContentLoaded', function () {
   const autoScatterTimer = setTimeout(() => scatter(), 4000);
 
   setTimeout(() => {
-    wrap.addEventListener('mouseenter', onMouseEnter);
-    window.addEventListener('wheel', onWheel, { passive: true });
-    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    if (isMobile) {
+      // Mobile: tap on the portrait triggers scatter
+      wrap.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        clearTimeout(autoScatterTimer);
+        scatter();
+      }, { once: true, passive: false });
+    } else {
+      wrap.addEventListener('mouseenter', onMouseEnter);
+      window.addEventListener('wheel', onWheel, { passive: true });
+      window.addEventListener('touchmove', onTouchMove, { passive: true });
+      // If the cursor was already over the portrait when the delay expired, scatter now
+      if (wrap.matches(':hover')) { clearTimeout(autoScatterTimer); scatter(); }
+    }
 
-    // Cancel auto-scatter as soon as the user interacts manually
+    // Cancel auto-scatter on any interaction
     const cancelAuto = () => clearTimeout(autoScatterTimer);
-    wrap.addEventListener('mouseenter', cancelAuto, { once: true });
+    window.addEventListener('touchend',  cancelAuto, { once: true, passive: true });
     window.addEventListener('wheel',     cancelAuto, { once: true, passive: true });
-    window.addEventListener('touchmove', cancelAuto, { once: true, passive: true });
-
-    // If the cursor was already over the portrait when the delay expired, scatter now
-    if (wrap.matches(':hover')) { clearTimeout(autoScatterTimer); scatter(); }
   }, 1000);
 
   // Browser back/forward buttons and trackpad swipes
