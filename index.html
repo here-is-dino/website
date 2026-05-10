@@ -1053,10 +1053,18 @@ document.addEventListener('DOMContentLoaded', function () {
     wrap.style.width = `${W}px`;
     const dist = window.__scatterEnergy || 0.15;
 
-    // Tiles scatter outward; grid drifts down slightly for vertical balance
+    // Tiles scatter outward; grid drifts down slightly for vertical balance.
+    // On mobile the col-2 tiles are hidden — use symmetric DIRS so the 2-column
+    // grid stays centred (tiles 1/4/7 scatter right instead of staying in place).
+    const MOBILE_DIRS = [
+      { x: -1, y: -1 }, { x:  1, y: -1 }, { x:  0, y: -1 },
+      { x: -1, y:  0 }, { x:  1, y:  0 }, { x:  0, y:  0 },
+      { x: -1, y:  1 }, { x:  1, y:  1 }, { x:  0, y:  1 },
+    ];
+    const dirs = isMobile ? MOBILE_DIRS : DIRS;
     const bottomShift = H * dist * 0.4 * p;
     tiles.forEach((tile, i) => {
-      tile.style.translate = `${DIRS[i].x * W * dist * p}px ${DIRS[i].y * H * dist * p}px`;
+      tile.style.translate = `${dirs[i].x * W * dist * p}px ${dirs[i].y * H * dist * p}px`;
     });
     wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
 
