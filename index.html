@@ -1172,6 +1172,7 @@ document.addEventListener('DOMContentLoaded', function () {
       let growTimer = null;
       const startGrow = () => {
         clearTimeout(growTimer);
+        t.style.zIndex = '10'; // float above sibling tiles when zooming
         t.style.transition = GROW_POP;
         t.style.scale = '1.25';
         growTimer = setTimeout(() => {
@@ -1184,6 +1185,7 @@ document.addEventListener('DOMContentLoaded', function () {
       };
       const stopGrow = () => {
         clearTimeout(growTimer);
+        t.style.zIndex = '';
         t.style.transition = GROW_OUT;
         t.style.scale = '1';
       };
