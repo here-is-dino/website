@@ -311,6 +311,16 @@
       padding: 56px 0 48px;
     }
 
+    /* ── Tablet (touch, 769–1200 px) ────────────────────────── */
+    @media (pointer: coarse) and (min-width: 769px) and (max-width: 1200px) {
+      #portrait-wrap {
+        width:  calc(35vh * 1.501) !important;
+        height: 35vh !important;
+      }
+      #stage { width: calc(35vh * 1.501); margin: 0 auto; }
+      .row-label { display: none; }
+    }
+
     /* ── Mobile ─────────────────────────────────────────────── */
     @media (max-width: 768px) {
       /* Portrait fills the screen width with correct aspect ratio */
@@ -397,7 +407,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const IMG_SRC = 'Portrait.jpg';
 
   // Declare core elements first — everything below depends on these
-  const isMobile = window.matchMedia('(pointer: coarse)').matches;
+  const isMobile = window.matchMedia('(pointer: coarse) and (max-width: 768px)').matches;
+  const isTablet = window.matchMedia('(pointer: coarse) and (min-width: 769px) and (max-width: 1200px)').matches;
 
   const wrap     = document.getElementById('portrait-wrap');
   const tileGrid = document.getElementById('tile-grid');
@@ -936,8 +947,8 @@ document.addEventListener('DOMContentLoaded', function () {
         scrollEl.id = 'project-scroll';
         Object.assign(scrollEl.style, {
           position: 'fixed', inset: '0', overflowY: 'auto', zIndex: '48',
-          // Mobile needs pointer-events for touch scrolling; desktop uses wheel forwarding
-          pointerEvents: isMobile ? 'auto' : 'none'
+          // Touch devices need pointer-events for native scrolling; desktop uses wheel forwarding
+          pointerEvents: (isMobile || isTablet) ? 'auto' : 'none'
         });
         // Reserve space for the overlay (which arrives at onOverlayLanded)
         scrollEl.style.paddingTop = `${targetH}px`;
@@ -1024,8 +1035,8 @@ document.addEventListener('DOMContentLoaded', function () {
           requestAnimationFrame(() => requestAnimationFrame(() => { contentEl.style.opacity = '1'; }));
         }
 
-        // Desktop: move overlay into scroll container so the video scrolls with content.
-        // Mobile: overlay stays position:fixed (paddingTop on scrollEl acts as spacer).
+        // Desktop + tablet: move overlay into scroll container so video scrolls with content.
+        // Mobile only: overlay stays position:fixed (paddingTop on scrollEl acts as spacer).
         const scrollEl = document.getElementById('project-scroll');
         if (isFullscreen && scrollEl && !isMobile) {
           scrollEl.style.paddingTop = ''; // overlay takes that space now
@@ -1176,7 +1187,7 @@ document.addEventListener('DOMContentLoaded', function () {
         t.style.transition = GROW_POP;
         t.style.scale = '1.25';
         growTimer = setTimeout(() => {
-          if (!isMobile && t.matches(':hover')) {
+          if (!isMobile && !isTablet && t.matches(':hover')) {
             t.style.transition = GROW_SLOW;
             t.style.scale = '1.6';
           }
@@ -1191,7 +1202,7 @@ document.addEventListener('DOMContentLoaded', function () {
       };
       tileControls.set(t, { startGrow, stopGrow });
 
-      if (!isMobile) {
+      if (!isMobile && !isTablet) {
         t.addEventListener('mouseenter', startGrow, { signal });
         t.addEventListener('mouseleave', stopGrow,  { signal });
         if (t.matches(':hover')) startGrow();
@@ -1217,7 +1228,7 @@ document.addEventListener('DOMContentLoaded', function () {
       { tile: videoTile9, vid: video9 },
     ];
 
-    if (!isMobile) {
+    if (!isMobile && !isTablet) {
       videoTiles.forEach(({ tile, vid }) => {
         const inner  = tile.querySelector('.tile-inner');
         const poster = vid.getAttribute('poster');
@@ -1240,7 +1251,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (tile.matches(':hover')) enter();
       });
     } else {
-      // Mobile: first tap → zoom + video; second tap → project page
+      // Touch devices (mobile + tablet): first tap → zoom + video; second tap → project page
       let mobileTapTile = null;
 
       videoTiles.forEach(({ tile, vid }) => {
@@ -1283,9 +1294,9 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }
 
-    // Row labels: desktop only (hidden + disabled on mobile)
-    if (isMobile) rowLabels.forEach(row => { row.el.style.display = 'none'; });
-    if (!isMobile) rowLabels.forEach(row => {
+    // Row labels: desktop only (hidden + disabled on touch devices)
+    if (isMobile || isTablet) rowLabels.forEach(row => { row.el.style.display = 'none'; });
+    if (!isMobile && !isTablet) rowLabels.forEach(row => {
       let hideTimer = null;
       row.tilesInRow.forEach(tile => {
         const enter = () => {
@@ -1308,8 +1319,8 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }); // end if (!isMobile) rowLabels
 
-    // Desktop: click → enter project view (mobile uses two-tap, handled above)
-    if (!isMobile) {
+    // Desktop only: click → enter project view (touch devices use two-tap)
+    if (!isMobile && !isTablet) {
       tiles.forEach(t => {
         t.addEventListener('click', () => openProject(t), { signal });
       });
@@ -1422,8 +1433,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const autoScatterTimer = setTimeout(() => scatter(), 4000);
 
   setTimeout(() => {
-    if (isMobile) {
-      // Mobile: tap on the portrait triggers scatter
+    if (isMobile || isTablet) {
+      // Touch devices: tap on the portrait triggers scatter
       wrap.addEventListener('touchend', (e) => {
         e.preventDefault();
         clearTimeout(autoScatterTimer);
