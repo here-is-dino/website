@@ -313,18 +313,38 @@
 
     /* ── Mobile ─────────────────────────────────────────────── */
     @media (max-width: 768px) {
-        /* Portrait fills the screen width with correct aspect ratio */
+      /* Portrait fills the screen width with correct aspect ratio */
       #portrait-wrap {
         width:  calc(54vw * 1.501) !important;
         height: 54vw !important;
       }
+      /* Explicit stage width so flexbox centres it correctly */
+      #stage { width: calc(54vw * 1.501); }
 
-      /* 2-column grid — hide the rightmost column of tiles */
-      #tile-grid { grid-template-columns: 1fr 1fr; }
+      /* 2-column grid — hide the rightmost column, tighter gap */
+      #tile-grid { grid-template-columns: 1fr 1fr; gap: 4px !important; }
       .tile[data-col="2"] { display: none; }
 
       /* Row labels don't make sense without hover */
       .row-label { display: none; }
+
+      /* Project page — single column: title → subtitle → description → credits */
+      .project-below-mobile {
+        padding: 28px 20px 80px;
+        font-family: 'EB Garamond', Georgia, serif;
+        color: #3d2f1e;
+      }
+      .project-below-mobile .credits-panel-title {
+        left: 0 !important;
+        margin-bottom: 28px !important;
+        font-size: clamp(22px, 7vw, 34px);
+      }
+      .project-below-mobile .project-subheader { font-size: clamp(16px, 4.5vw, 22px); margin-bottom: 16px; }
+      .project-below-mobile .project-body     { font-size: clamp(14px, 4vw, 18px);   margin-bottom: 12px; }
+      .project-credits-mobile { margin-top: 32px; font-size: clamp(11px, 3vw, 14px); line-height: 1.6; }
+      .project-credits-mobile p { margin-bottom: 2px; }
+      .project-credits-mobile .credit-role { color: #8a8a8a; }
+      .project-credits-mobile .credit-name { color: #3d2f1e; }
     }
 
   </style>
@@ -449,9 +469,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const PROJECT_TITLES = {};
 
   // Project page content, keyed by tile index.
-  // credits → left column; description → right column.
-  const PLACEHOLDER_CREDITS = (title) => `
-<p class="credits-panel-title" style="left:40%"><span class="title-main">${title}</span></p>
+  // title/titleStyle drive the heading; credits are the lines below it; description is the right/top column.
+  const PLACEHOLDER_CREDITS = `
 <p><span class="credit-role">Written &amp; Directed by </span><span class="credit-name">Deyan Tsvyatkov</span></p>
 <p><span class="credit-role">Produced by </span><span class="credit-name">Johana Trayanova &amp; Deyan Tsvyatkov</span></p>
 <p><span class="credit-role">Director of Photography </span><span class="credit-name">Dimitar Tenev</span></p>
@@ -467,11 +486,28 @@ document.addEventListener('DOMContentLoaded', function () {
 <p class="project-body">I wrote and shot this short film with funding from the NCF and my last savings during the pandemic. The project was too ambitious for its limited budget so I heavily compensated in each department, including making the music and sound design.</p>
 <p class="project-body">It won an award at the Berlin Sci-Fi Festival, caused some media buzz and ended up being bought by HBO. You can watch it <a href="https://youtu.be/854_6PaC-ic?si=fM858B0EWtrqyIBU" target="_blank" rel="noopener noreferrer">here</a>.</p>`;
 
+  // Build the project page HTML — two columns on desktop, single column on mobile
+  function buildProjectHTML(c) {
+    const titleP = `<p class="credits-panel-title" style="${c.titleStyle || ''}">${c.title || ''}</p>`;
+    if (isMobile) {
+      return `<div class="project-below-mobile">
+        ${titleP}
+        <div>${c.description || ''}</div>
+        <div class="project-credits-mobile">${c.credits || ''}</div>
+      </div>`;
+    }
+    return `<div class="project-below">
+      <div class="project-below-left">${titleP}${c.credits || ''}</div>
+      <div class="project-below-right">${c.description || ''}</div>
+    </div>`;
+  }
+
   const PROJECT_CONTENT = {
     0: {
       fullscreen: true,
+      title: `<span class="title-main">Vi</span> <span class="title-sub">(short film)</span>`,
+      titleStyle: 'left:27%',
       credits: `
-<p class="credits-panel-title" style="left:27%"><span class="title-main">Vi</span> <span class="title-sub">(short film)</span></p>
 <p><span class="credit-role">Written &amp; Directed by </span><span class="credit-name">Deyan Tsvyatkov</span></p>
 <p><span class="credit-role">Produced by </span><span class="credit-name">Johana Trayanova &amp; Deyan Tsvyatkov</span></p>
 <p><span class="credit-role">Director of Photography </span><span class="credit-name">Dimitar Tenev</span></p>
@@ -486,12 +522,11 @@ document.addEventListener('DOMContentLoaded', function () {
 <p class="project-body">I wrote and shot this short film with funding from the NCF and my last savings during the pandemic. The project was too ambitious for its limited budget so I heavily compensated in each department, including making the music and sound design.</p>
 <p class="project-body">It won an award at the Berlin Sci-Fi Festival, caused some media buzz and ended up being bought by HBO. You can watch it <a href="https://youtu.be/854_6PaC-ic?si=fM858B0EWtrqyIBU" target="_blank" rel="noopener noreferrer">here</a>.</p>`,
     },
-    1: { fullscreen: true, description: `
-<p class="project-subheader">Sometimes we can get so lost in each other that time itself stops.</p>
-<p class="project-body">This was my second short film, so I decided to work on a larger scale. We had a proper small crew and spent four days travelling across different locations in Bulgaria, following our couple through a frozen world where time had stopped.</p>
-<p class="project-body">The film was warmly welcomed at several festivals. I even received a small award statuette from Barcelona. Check it <a href="https://youtu.be/InZIVui9Ccg?si=8Z0p8EydMbt7CPBy" target="_blank" rel="noopener noreferrer">here</a>.</p>`,
-    credits: `
-<p class="credits-panel-title" style="left:40%"><span class="title-main">Far Away from Time</span></p>
+    1: {
+      fullscreen: true,
+      title: `<span class="title-main">Far Away from Time</span>`,
+      titleStyle: 'left:40%',
+      credits: `
 <p><span class="credit-role">Written &amp; Directed by </span><span class="credit-name">Deyan Tsvyatkov</span></p>
 <p><span class="credit-role">Produced by </span><span class="credit-name">Ivan Hristov</span></p>
 <p><span class="credit-role">Director of Photography </span><span class="credit-name">Dimitar Tenev</span></p>
@@ -502,14 +537,19 @@ document.addEventListener('DOMContentLoaded', function () {
 <p><span class="credit-role">Sound Design </span><span class="credit-name">Rossen Pavlov</span></p>
 <p><span class="credit-role">Music by </span><span class="credit-name">Hristo Namliev</span></p>
 <p><span class="credit-role">Featuring </span><span class="credit-name">Alissa Atanassova, Georgi Naldzhiev</span></p>
-<p><span class="credit-name">A Hanplayed / Serafimov Film / b2y Production</span></p>` },
-    2: { fullscreen: true, credits: PLACEHOLDER_CREDITS('The Object'),          description: PLACEHOLDER_DESC },
-    3: { fullscreen: true, credits: PLACEHOLDER_CREDITS('Payhawk AI'),           description: PLACEHOLDER_DESC },
-    4: { fullscreen: true, credits: PLACEHOLDER_CREDITS('A Small Step'),         description: PLACEHOLDER_DESC },
-    5: { fullscreen: true, credits: PLACEHOLDER_CREDITS('Payhawk Ad'),           description: PLACEHOLDER_DESC },
-    6: { fullscreen: true, credits: PLACEHOLDER_CREDITS('Snow'),                 description: PLACEHOLDER_DESC },
-    7: { fullscreen: true, credits: PLACEHOLDER_CREDITS('Submarine'),            description: PLACEHOLDER_DESC },
-    8: { fullscreen: true, credits: PLACEHOLDER_CREDITS('Alien'),                description: PLACEHOLDER_DESC },
+<p><span class="credit-name">A Hanplayed / Serafimov Film / b2y Production</span></p>`,
+      description: `
+<p class="project-subheader">Sometimes we can get so lost in each other that time itself stops.</p>
+<p class="project-body">This was my second short film, so I decided to work on a larger scale. We had a proper small crew and spent four days travelling across different locations in Bulgaria, following our couple through a frozen world where time had stopped.</p>
+<p class="project-body">The film was warmly welcomed at several festivals. I even received a small award statuette from Barcelona. Check it <a href="https://youtu.be/InZIVui9Ccg?si=8Z0p8EydMbt7CPBy" target="_blank" rel="noopener noreferrer">here</a>.</p>`,
+    },
+    2: { fullscreen: true, title: `<span class="title-main">The Object</span>`,   titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
+    3: { fullscreen: true, title: `<span class="title-main">Payhawk AI</span>`,   titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
+    4: { fullscreen: true, title: `<span class="title-main">A Small Step</span>`, titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
+    5: { fullscreen: true, title: `<span class="title-main">Payhawk Ad</span>`,   titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
+    6: { fullscreen: true, title: `<span class="title-main">Snow</span>`,          titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
+    7: { fullscreen: true, title: `<span class="title-main">Submarine</span>`,    titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
+    8: { fullscreen: true, title: `<span class="title-main">Alien</span>`,         titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
   };
 
   let hasScattered      = false;
@@ -538,9 +578,9 @@ document.addEventListener('DOMContentLoaded', function () {
       delete overlay._docWheelHandler;
     }
 
-    // Reset overlay to its natural (top) position before the reverse animation
+    // Ensure overlay is at its natural position (it no longer moves with scroll)
     overlay.style.transition = 'none';
-    overlay.style.transform  = 'none';
+    overlay.style.transform  = 'translateZ(0)';
     overlay.getBoundingClientRect(); // force reflow
 
     const tileRect    = tile.getBoundingClientRect();
@@ -877,7 +917,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const scrollEl = document.createElement('div');
         scrollEl.id = 'project-scroll';
         Object.assign(scrollEl.style, {
-          position: 'fixed', inset: '0', overflowY: 'auto', zIndex: '48', pointerEvents: 'none'
+          position: 'fixed', inset: '0', overflowY: 'auto', zIndex: '48',
+          // Mobile needs pointer-events for touch scrolling; desktop uses wheel forwarding
+          pointerEvents: isMobile ? 'auto' : 'none'
         });
         const spacerEl = document.createElement('div');
         spacerEl.style.height = `${targetT + targetH + 48}px`;
@@ -892,49 +934,49 @@ document.addEventListener('DOMContentLoaded', function () {
           <a href="https://instagram.com/here.is.dino" target="_blank" rel="noopener noreferrer" title="Instagram">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>
           </a>`;
-        contentEl.innerHTML = `<div class="project-below">
-          <div class="project-below-left">${projectContent.credits || ''}</div>
-          <div class="project-below-right">${projectContent.description || ''}</div>
-        </div>
-        <div class="project-footer">${footerIcons}</div>`;
+        contentEl.innerHTML = buildProjectHTML(projectContent) +
+          `<div class="project-footer">${footerIcons}</div>`;
         scrollEl.appendChild(spacerEl);
         scrollEl.appendChild(contentEl);
         document.body.appendChild(scrollEl);
 
-        // Measure at natural layout positions first, then set animation start states
+        // Measure and animate content in
         requestAnimationFrame(() => {
-          const titleEl  = contentEl.querySelector('.credits-panel-title');
-          const leftCol  = contentEl.querySelector('.project-below-left');
-          const rightCol = contentEl.querySelector('.project-below-right');
-          const creditLines = leftCol ? leftCol.querySelectorAll('p:not(.credits-panel-title)') : [];
+          const ease      = 'cubic-bezier(0.22, 1, 0.36, 1)';
+          const titleEl   = contentEl.querySelector('.credits-panel-title');
 
-          // Align right column to start at first credit line
-          if (titleEl && rightCol && leftCol) {
-            const titleRect      = titleEl.getBoundingClientRect();
-            const colRect        = leftCol.getBoundingClientRect();
-            const titleMarginBot = parseFloat(getComputedStyle(titleEl).marginBottom);
-            rightCol.style.paddingTop = `${titleRect.bottom - colRect.top + titleMarginBot}px`;
-          }
-
-          // Hide elements (no transition yet so there's no flash)
-          const leftEls = titleEl ? [titleEl, ...creditLines] : [...creditLines];
-          leftEls.forEach(p => { p.style.opacity = '0'; p.style.transform = 'translateX(-48px)'; p.style.transition = 'none'; });
-          if (rightCol) { rightCol.style.opacity = '0'; rightCol.style.transform = 'translateX(48px)'; rightCol.style.transition = 'none'; }
-
-          // Fly in: title + credits from left, description from right
-          requestAnimationFrame(() => {
-            const ease = 'cubic-bezier(0.22, 1, 0.36, 1)';
-            leftEls.forEach(p => {
-              p.style.transition = `opacity 0.5s ease, transform 0.65s ${ease}`;
-              p.style.opacity    = '1';
-              p.style.transform  = 'none';
+          if (isMobile) {
+            // Mobile: single column — everything fades + slides up
+            contentEl.style.opacity   = '0';
+            contentEl.style.transform = 'translateY(24px)';
+            contentEl.style.transition = 'none';
+            requestAnimationFrame(() => {
+              contentEl.style.transition = `opacity 0.4s ease, transform 0.5s ${ease}`;
+              contentEl.style.opacity   = '1';
+              contentEl.style.transform = 'none';
             });
-            if (rightCol) {
-              rightCol.style.transition = `opacity 0.5s ease, transform 0.65s ${ease}`;
-              rightCol.style.opacity    = '1';
-              rightCol.style.transform  = 'none';
+          } else {
+            // Desktop: two-column fly-in (left from left, right from right)
+            const leftCol   = contentEl.querySelector('.project-below-left');
+            const rightCol  = contentEl.querySelector('.project-below-right');
+            const creditLines = leftCol ? leftCol.querySelectorAll('p:not(.credits-panel-title)') : [];
+
+            if (titleEl && rightCol && leftCol) {
+              const titleRect      = titleEl.getBoundingClientRect();
+              const colRect        = leftCol.getBoundingClientRect();
+              const titleMarginBot = parseFloat(getComputedStyle(titleEl).marginBottom);
+              rightCol.style.paddingTop = `${titleRect.bottom - colRect.top + titleMarginBot}px`;
             }
-          });
+
+            const leftEls = titleEl ? [titleEl, ...creditLines] : [...creditLines];
+            leftEls.forEach(p => { p.style.opacity = '0'; p.style.transform = 'translateX(-48px)'; p.style.transition = 'none'; });
+            if (rightCol) { rightCol.style.opacity = '0'; rightCol.style.transform = 'translateX(48px)'; rightCol.style.transition = 'none'; }
+
+            requestAnimationFrame(() => {
+              leftEls.forEach(p => { p.style.transition = `opacity 0.5s ease, transform 0.65s ${ease}`; p.style.opacity = '1'; p.style.transform = 'none'; });
+              if (rightCol) { rightCol.style.transition = `opacity 0.5s ease, transform 0.65s ${ease}`; rightCol.style.opacity = '1'; rightCol.style.transform = 'none'; }
+            });
+          }
         });
       }, 350);
     }
@@ -965,13 +1007,8 @@ document.addEventListener('DOMContentLoaded', function () {
           requestAnimationFrame(() => requestAnimationFrame(() => { contentEl.style.opacity = '1'; }));
         }
 
-        // Scroll tracking
+        // Video stays fixed — no scroll tracking transform on the overlay
         const scrollEl = document.getElementById('project-scroll');
-        if (scrollEl) {
-          scrollEl.addEventListener('scroll', () => {
-            overlay.style.transform = `translateY(${-scrollEl.scrollTop}px) translateZ(0)`;
-          }, { passive: true });
-        }
 
         // Forward vertical wheel events to the scroll container.
         // Horizontal events (trackpad back/forward swipe) are left alone so the
@@ -1037,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', function () {
     video9.style.opacity = String(p);
 
     // Gap between tiles grows with scatter progress
-    tileGrid.style.gap = `${Math.round(p * 10)}px`;
+    tileGrid.style.gap = `${Math.round(p * (isMobile ? 4 : 10))}px`;
 
     // Keep row labels glued to their anchor tiles while visible
     rowLabels.forEach(row => {
