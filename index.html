@@ -322,7 +322,7 @@
       #stage { width: calc(54vw * 1.501); margin: 0 auto; }
 
       /* 2-column grid — hide the rightmost column, tighter gap */
-      #tile-grid { grid-template-columns: 1fr 1fr; gap: 4px !important; }
+      #tile-grid { grid-template-columns: 1fr 1fr; gap: 1px !important; }
       .tile[data-col="2"] { display: none; }
 
       /* Row labels don't make sense without hover */
@@ -578,7 +578,23 @@ document.addEventListener('DOMContentLoaded', function () {
       delete overlay._docWheelHandler;
     }
 
-    // Ensure overlay is at its natural position (it no longer moves with scroll)
+    // If overlay was moved into the scroll container, restore it to body as position:fixed
+    // so the existing FLIP animation code works unchanged.
+    if (overlay.parentElement !== document.body) {
+      const r = overlay.getBoundingClientRect(); // visual position before reparenting
+      if (scrollEl) scrollEl.scrollTop = 0;     // snap scroll to top first
+      document.body.appendChild(overlay);
+      Object.assign(overlay.style, {
+        position: 'fixed',
+        top:      `${r.top}px`,
+        left:     `${r.left}px`,
+        width:    `${r.width}px`,
+        height:   `${r.height}px`,
+        zIndex:   '50',
+      });
+      overlay.getBoundingClientRect(); // force reflow
+    }
+
     overlay.style.transition = 'none';
     overlay.style.transform  = 'translateZ(0)';
     overlay.getBoundingClientRect(); // force reflow
@@ -921,8 +937,8 @@ document.addEventListener('DOMContentLoaded', function () {
           // Mobile needs pointer-events for touch scrolling; desktop uses wheel forwarding
           pointerEvents: isMobile ? 'auto' : 'none'
         });
-        const spacerEl = document.createElement('div');
-        spacerEl.style.height = `${targetT + targetH + 48}px`;
+        // Reserve space for the overlay (which arrives at onOverlayLanded)
+        scrollEl.style.paddingTop = `${targetH}px`;
 
         const contentEl = document.createElement('div');
         contentEl.id = 'project-content';
@@ -1007,8 +1023,22 @@ document.addEventListener('DOMContentLoaded', function () {
           requestAnimationFrame(() => requestAnimationFrame(() => { contentEl.style.opacity = '1'; }));
         }
 
-        // Video stays fixed — no scroll tracking transform on the overlay
+        // Move overlay into scroll container so the video scrolls with the content
         const scrollEl = document.getElementById('project-scroll');
+        if (isFullscreen && scrollEl) {
+          scrollEl.style.paddingTop = ''; // padding no longer needed — overlay takes that space
+          Object.assign(overlay.style, {
+            position:      'relative',
+            top:           '', left:    '',
+            width:         '100%',
+            height:        `${targetH}px`,
+            zIndex:        '',
+            willChange:    '',
+            pointerEvents: 'auto',
+            cursor:        'pointer',
+          });
+          scrollEl.insertBefore(overlay, scrollEl.firstChild);
+        }
 
         // Forward vertical wheel events to the scroll container.
         // Horizontal events (trackpad back/forward swipe) are left alone so the
@@ -1062,9 +1092,12 @@ document.addEventListener('DOMContentLoaded', function () {
       { x: -1, y:  1 }, { x:  1, y:  1 }, { x:  0, y:  1 },
     ];
     const dirs = isMobile ? MOBILE_DIRS : DIRS;
+    // On mobile, scale horizontal scatter so column gap = row gap:
+    // col_gap = 2·W·distX  row_gap = H·dist  → equal when distX = H·dist/(2·W)
+    const distX = isMobile ? dist * H / (2 * W) : dist;
     const bottomShift = H * dist * 0.4 * p;
     tiles.forEach((tile, i) => {
-      tile.style.translate = `${dirs[i].x * W * dist * p}px ${dirs[i].y * H * dist * p}px`;
+      tile.style.translate = `${dirs[i].x * W * distX * p}px ${dirs[i].y * H * dist * p}px`;
     });
     wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
 
@@ -1082,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', function () {
     video9.style.opacity = String(p);
 
     // Gap between tiles grows with scatter progress
-    tileGrid.style.gap = `${Math.round(p * (isMobile ? 4 : 10))}px`;
+    tileGrid.style.gap = `${Math.round(p * (isMobile ? 1 : 10))}px`;
 
     // Keep row labels glued to their anchor tiles while visible
     rowLabels.forEach(row => {
