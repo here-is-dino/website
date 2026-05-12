@@ -325,11 +325,11 @@
     @media (max-width: 768px) {
       /* Portrait fills the screen width with correct aspect ratio */
       #portrait-wrap {
-        width:  calc(43.2vw * 1.501) !important;
-        height: 43.2vw !important;
+        width:  calc(48vw * 1.501) !important;
+        height: 48vw !important;
       }
       /* Explicit stage width + margin:auto for reliable centering */
-      #stage { width: calc(43.2vw * 1.501); margin: 0 auto; }
+      #stage { width: calc(48vw * 1.501); margin: 0 auto; }
 
       /* 2-column grid — hide the rightmost column, tighter gap */
       #tile-grid { grid-template-columns: 1fr 1fr; gap: 1px !important; }
@@ -1091,7 +1091,9 @@ document.addEventListener('DOMContentLoaded', function () {
   function applyScatter(p) {
     window.__scatterProgress = p;
     const H = wrap.offsetHeight;
-    const ratio = RATIO_START + (RATIO_END - RATIO_START) * p;
+    // Mobile uses 8/9 so each tile in the 2-col × 3-row grid lands at 4:3
+    const ratioEnd = isMobile ? (8 / 9) : RATIO_END;
+    const ratio = RATIO_START + (ratioEnd - RATIO_START) * p;
     const W = isMobile ? Math.min(H * ratio, window.innerWidth * 0.96) : H * ratio;
     wrap.style.width = `${W}px`;
     const dist = window.__scatterEnergy || 0.15;
