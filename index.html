@@ -311,6 +311,68 @@
       padding: 24px 0 48px;
     }
 
+    #mobile-row-label {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: clamp(10px, 2.5vw, 13px);
+      font-weight: 400;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #3d2f1e;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 30;
+    }
+    #mobile-row-label.visible { opacity: 1; }
+    .mrl-text {
+      display: block;
+      opacity: 0;
+      transform: scale(0.72);
+    }
+    #mobile-row-label.visible .mrl-text {
+      animation: mrlTextIn 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+    .mrl-line {
+      display: block;
+      height: 1px;
+      width: 100%;
+      background: currentColor;
+      transform: scaleX(0);
+      transform-origin: center;
+    }
+    #mobile-row-label.visible .mrl-line {
+      animation: mrlLineIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+    }
+    #mobile-row-label.hiding .mrl-line {
+      animation: mrlLineOut 0.25s ease-in 0s both;
+    }
+    #mobile-row-label.hiding .mrl-text {
+      animation: mrlTextOut 0.3s ease-in 0.2s both;
+    }
+    @keyframes mrlTextIn {
+      from { opacity: 0; transform: scale(0.72); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    @keyframes mrlLineIn {
+      from { transform: scaleX(0); }
+      to   { transform: scaleX(1); }
+    }
+    @keyframes mrlTextOut {
+      from { opacity: 1; transform: scale(1); }
+      to   { opacity: 0; transform: scale(0.72); }
+    }
+    @keyframes mrlLineOut {
+      from { transform: scaleX(1); }
+      to   { transform: scaleX(0); }
+    }
+
     /* ── Tablet (touch, 769–1200 px) ────────────────────────── */
     @media (pointer: coarse) and (min-width: 769px) and (max-width: 1200px) {
       #portrait-wrap {
@@ -329,10 +391,10 @@
         height: 51.84vw !important;
       }
       /* Centre stage so portrait and title are centred */
-      #stage { margin: 0 auto; width: calc(51.84vw * 1.501); }
+      #stage { margin: 0 auto; width: calc(51.84vw * 1.501); transform: translateY(-10%); }
 
-      /* 3-column grid, tight gap — col 3 partially off-screen right */
-      #tile-grid { gap: 1px !important; }
+      /* 3-column grid — 3px gap both directions */
+      #tile-grid { gap: 3px !important; }
 
       /* Row labels don't make sense without hover */
       .row-label { display: none; }
@@ -354,6 +416,11 @@
       .project-credits-mobile p { margin-bottom: 2px; }
       .project-credits-mobile .credit-role { color: #8a8a8a; }
       .project-credits-mobile .credit-name { color: #3d2f1e; }
+      .tile[data-col="0"][data-row="0"] .tile-inner video,
+      .tile[data-col="1"][data-row="0"] .tile-inner video,
+      .tile[data-col="1"][data-row="1"] .tile-inner video,
+      .tile[data-col="0"][data-row="2"] .tile-inner video,
+      .tile[data-col="2"][data-row="2"] .tile-inner video { transform: scale(1.2); }
     }
 
   </style>
@@ -378,6 +445,8 @@
     </div>
   </div>
 </div>
+
+<div id="mobile-row-label"><span class="mrl-text"></span><div class="mrl-line"></div></div>
 
 <div id="row-label-1" class="row-label">Short films</div>
 <div id="row-label-2" class="row-label">Ads / campaigns</div>
@@ -729,6 +798,16 @@ document.addEventListener('DOMContentLoaded', function () {
     overlay.addEventListener('transitionend', onEnd);
   }
 
+  function hideMrl(el) {
+    if (!el) return;
+    if (el._hideTimer) { clearTimeout(el._hideTimer); el._hideTimer = null; }
+    el.classList.add('hiding');
+    el._hideTimer = setTimeout(() => {
+      el.classList.remove('visible', 'hiding');
+      el._hideTimer = null;
+    }, 560);
+  }
+
   function openProject(tile, pushHistory = true) {
     if (isProjectView) return;
     isProjectView = true;
@@ -752,6 +831,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Hide the fixed grid footer — project pages have their own scrollable footer
     const gridFooter = document.getElementById('site-footer');
     if (gridFooter) { gridFooter.style.opacity = '0'; gridFooter.style.pointerEvents = 'none'; }
+    hideMrl(document.getElementById('mobile-row-label'));
 
     // Read current rects before any animation
     const nameRect     = nameEl.getBoundingClientRect();
@@ -1131,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', function () {
     video9.style.opacity = String(p);
 
     // Gap between tiles grows with scatter progress
-    tileGrid.style.gap = `${Math.round(p * (isMobile ? 1 : 10))}px`; // keep 1px gap on mobile
+    tileGrid.style.gap = `${Math.round(p * (isMobile ? 3 : 10))}px`;
 
     // Keep row labels glued to their anchor tiles while visible
     rowLabels.forEach(row => {
@@ -1267,7 +1347,11 @@ document.addEventListener('DOMContentLoaded', function () {
           if (!scatterComplete) return;
           e.preventDefault(); // prevent ghost click
 
+          const mobileRowLabelEl = document.getElementById('mobile-row-label');
+
           if (mobileTapTile !== tile) {
+            const prevRowIdx = mobileTapTile ? Math.floor(tiles.indexOf(mobileTapTile) / 3) : -1;
+
             // Deactivate previously active tile
             if (mobileTapTile) {
               const { stopGrow: prevStop } = tileControls.get(mobileTapTile);
@@ -1283,6 +1367,23 @@ document.addEventListener('DOMContentLoaded', function () {
             // Activate this tile
             mobileTapTile = tile;
             startGrow();
+
+            // Show row label just above the grid
+            if (mobileRowLabelEl) {
+              const rowIdx = Math.floor(tiles.indexOf(tile) / 3);
+              if (rowIdx !== prevRowIdx) {
+                // New row — update text and animate in
+                const wrapRect = wrap.getBoundingClientRect();
+                mobileRowLabelEl.style.top = `${wrapRect.top - 72}px`;
+                const mrlTextEl = mobileRowLabelEl.querySelector('.mrl-text');
+                if (mrlTextEl) mrlTextEl.textContent = rowLabels[rowIdx]?.el.textContent || '';
+                if (mobileRowLabelEl._hideTimer) { clearTimeout(mobileRowLabelEl._hideTimer); mobileRowLabelEl._hideTimer = null; }
+                mobileRowLabelEl.classList.remove('visible', 'hiding');
+                void mobileRowLabelEl.offsetWidth;
+                mobileRowLabelEl.classList.add('visible');
+              }
+              // Same row — leave label untouched
+            }
             if (inner && poster) {
               inner.style.backgroundImage    = `url('${poster}')`;
               inner.style.backgroundSize     = 'cover';
@@ -1296,6 +1397,23 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         }, { signal, passive: false });
       });
+
+      // Tap outside any tile → reset active tile back to normal
+      document.addEventListener('touchend', (e) => {
+        if (!mobileTapTile) return;
+        if (e.target.closest('.tile')) return; // tap was on a tile — handled above
+        const { stopGrow } = tileControls.get(mobileTapTile);
+        stopGrow();
+        const prevEntry = videoTiles.find(v => v.tile === mobileTapTile);
+        if (prevEntry) {
+          prevEntry.vid.pause();
+          const prevInner = mobileTapTile.querySelector('.tile-inner');
+          if (prevInner) prevInner.style.backgroundImage = '';
+        }
+        restoreAll();
+        mobileTapTile = null;
+        hideMrl(document.getElementById('mobile-row-label'));
+      }, { signal, passive: true });
     }
 
     // Row labels: desktop only (hidden + disabled on touch devices)
@@ -1438,12 +1556,18 @@ document.addEventListener('DOMContentLoaded', function () {
   function onMouseEnter() { scatter(); }
   function onWheel(e) { if (e.deltaY > 10) scatter(); }
   let touchY0 = null;
+  let touchX0 = null;
   function onTouchMove(e) {
     if (touchY0 === null) return;
-    if (touchY0 - e.touches[0].clientY > 30) scatter();
+    const dy = Math.abs(e.touches[0].clientY - touchY0);
+    const dx = Math.abs(e.touches[0].clientX - touchX0);
+    if (dy > 30 || dx > 30) scatter();
   }
 
-  window.addEventListener('touchstart', e => { touchY0 = e.touches[0].clientY; }, { passive: true });
+  window.addEventListener('touchstart', e => {
+    touchY0 = e.touches[0].clientY;
+    touchX0 = e.touches[0].clientX;
+  }, { passive: true });
 
   // Delay scatter triggers by 0.6 s to buffer video first frames on slow connections.
   // If the user hasn't hovered within 3 s, scatter fires automatically.
@@ -1451,12 +1575,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
   setTimeout(() => {
     if (isMobile || isTablet) {
-      // Touch devices: tap on the portrait triggers scatter
+      // Touch devices: tap on the portrait OR swipe anywhere triggers scatter
       wrap.addEventListener('touchend', (e) => {
         e.preventDefault();
         clearTimeout(autoScatterTimer);
         scatter();
       }, { once: true, passive: false });
+      window.addEventListener('touchmove', onTouchMove, { passive: true });
     } else {
       wrap.addEventListener('mouseenter', onMouseEnter);
       window.addEventListener('wheel', onWheel, { passive: true });
