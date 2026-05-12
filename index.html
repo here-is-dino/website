@@ -186,7 +186,17 @@
       transform: translate(0, -50%);
     }
 
-    /* Project page title — appears in place of "Deyan Tsvyatkov" when a project opens */
+    /* Project page title block — sits in the scroll flow, below the video */
+    #project-title-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 40px 24px 28px;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
+    }
     #project-page-title {
       font-family: 'EB Garamond', Georgia, serif;
       font-size: clamp(18px, 2.2vw, 36px);
@@ -197,11 +207,15 @@
       color: #3d2f1e;
       white-space: nowrap;
       user-select: none;
-      position: fixed;
-      left: 50%;
-      will-change: top, transform, opacity;
-      z-index: 60;
-      pointer-events: none;
+    }
+    #project-page-subtitle {
+      font-family: Inter, -apple-system, sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #6a6a6a;
+      white-space: nowrap;
     }
 
     #project-content {
@@ -546,7 +560,12 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Per-project page title — reserved for future use; empty means no swap.
-  const PROJECT_TITLES = {};
+  const PROJECT_TITLES = {
+    0: 'Vi', 1: 'Far Away from Time', 2: 'The Object',
+    3: 'Payhawk AI', 4: 'A Small Step', 5: 'Payhawk Ad',
+    6: 'Snow', 7: 'Submarine', 8: 'Alien',
+  };
+  const PROJECT_CATEGORIES = ['Short Film', 'Ad', 'Experimental']; // indexed by row
 
   // Project page content, keyed by tile index.
   // title/titleStyle drive the heading; credits are the lines below it; description is the right/top column.
@@ -568,16 +587,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Build the project page HTML — two columns on desktop, single column on mobile
   function buildProjectHTML(c) {
-    const titleP = `<p class="credits-panel-title" style="${c.titleStyle || ''}">${c.title || ''}</p>`;
     if (isMobile) {
       return `<div class="project-below-mobile">
-        ${titleP}
         <div>${c.description || ''}</div>
         <div class="project-credits-mobile">${c.credits || ''}</div>
       </div>`;
     }
     return `<div class="project-below">
-      <div class="project-below-left">${titleP}${c.credits || ''}</div>
+      <div class="project-below-left">${c.credits || ''}</div>
       <div class="project-below-right">${c.description || ''}</div>
     </div>`;
   }
@@ -707,29 +724,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const easing = easeOut;
 
-    // If we swapped to a project page title, fade it out and bring the originals back
-    const titleEl = document.getElementById('project-page-title');
-    if (titleEl) {
-      titleEl.style.transition = 'opacity 0.3s ease';
-      titleEl.style.opacity    = '0';
-      setTimeout(() => titleEl.remove(), 400);
-
-      // Fade originals back in (slight delay so the new title is on its way out)
-      setTimeout(() => {
-        nameEl.style.transition     = 'opacity 0.4s ease';
-        subtitleEl.style.transition = 'opacity 0.4s ease';
-        nameEl.style.opacity     = '1';
-        subtitleEl.style.opacity = '1';
-      }, 200);
-    } else {
-      // Fly name + subtitle back in from the top
-      nameEl.style.transition     = `transform 0.7s ${easing}, opacity 0.5s ease`;
-      subtitleEl.style.transition = `transform 0.7s ${easing}, opacity 0.5s ease`;
-      nameEl.style.transform      = 'translateX(-50%) translateY(0)';
-      subtitleEl.style.transform  = 'translateX(-50%) translateY(0)';
-      nameEl.style.opacity        = '1';
-      subtitleEl.style.opacity    = '1';
-    }
+    // Fade name/subtitle back in
+    setTimeout(() => {
+      nameEl.style.transition     = 'opacity 0.4s ease';
+      subtitleEl.style.transition = 'opacity 0.4s ease';
+      nameEl.style.opacity     = '1';
+      subtitleEl.style.opacity = '1';
+    }, 200);
 
     // Fly footer in from below — symmetric to the title flying in from the top
     const gridFooter = document.getElementById('site-footer');
@@ -850,51 +851,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const tileIndex    = tiles.indexOf(tile);
     const projectTitle = PROJECT_TITLES[tileIndex];
 
-    let titleBottomFinal; // y position of the bottom of the active title (used for targetT)
+    // Fade out name/subtitle — project title lives in the scroll content below the video
+    nameEl.style.transition     = 'opacity 0.3s ease';
+    subtitleEl.style.transition = 'opacity 0.3s ease';
+    nameEl.style.opacity     = '0';
+    subtitleEl.style.opacity = '0';
 
-    if (projectTitle) {
-      // Fade out original "Deyan Tsvyatkov" + "Writer & director"
-      nameEl.style.transition     = 'opacity 0.3s ease';
-      subtitleEl.style.transition = 'opacity 0.3s ease';
-      nameEl.style.opacity     = '0';
-      subtitleEl.style.opacity = '0';
-
-      // Remove any leftover title from a previous quick close
-      const stale = document.getElementById('project-page-title');
-      if (stale) stale.remove();
-
-      // Create the new project title — initially at viewport center, hidden
-      const titleEl = document.createElement('div');
-      titleEl.id = 'project-page-title';
-      titleEl.textContent = projectTitle;
-      Object.assign(titleEl.style, {
-        top:       `${Math.round(window.innerHeight / 2)}px`,
-        transform: 'translate(-50%, -50%) scale(0.94)',
-        opacity:   '0',
-      });
-      document.body.appendChild(titleEl);
-      const titleHeight = titleEl.offsetHeight;
-      titleBottomFinal  = A + titleHeight;
-
-      // Fade in from centre and arrive at final position exactly when the FLIP lands (0.85s)
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        titleEl.style.transition = `top 0.85s ${easing}, transform 0.85s ${easing}, opacity 0.6s ease`;
-        titleEl.style.top        = `${A}px`;
-        titleEl.style.transform  = 'translate(-50%, 0) scale(1)';
-        titleEl.style.opacity    = '1';
-      }));
-    } else {
-      // Fly name + subtitle off the top of the screen
-      const flyOut = nameRect.top + 60;
-      nameEl.style.transition     = `transform 0.6s ${easing}, opacity 0.4s ease`;
-      subtitleEl.style.transition = `transform 0.6s ${easing}, opacity 0.4s ease`;
-      nameEl.style.transform      = `translateX(-50%) translateY(-${flyOut}px)`;
-      subtitleEl.style.transform  = `translateX(-50%) translateY(-${flyOut}px)`;
-      nameEl.style.opacity        = '0';
-      subtitleEl.style.opacity    = '0';
-      // Thumbnail sits with a small fixed top margin since the title is gone
-      titleBottomFinal = Math.round(window.innerHeight * 0.04);
-    }
+    const titleBottomFinal = Math.round(window.innerHeight * 0.04);
 
     // Size and position the overlay — fullscreen projects fill the entire viewport.
     const projectContent  = PROJECT_CONTENT[tileIndex];
@@ -1040,6 +1003,19 @@ document.addEventListener('DOMContentLoaded', function () {
         // Reserve space for the overlay (which arrives at onOverlayLanded)
         scrollEl.style.paddingTop = `${targetH}px`;
 
+        // Title block — scrolls with content, sits directly below the video
+        const titleBlockEl = document.createElement('div');
+        titleBlockEl.id = 'project-title-block';
+        const titleNameEl = document.createElement('div');
+        titleNameEl.id = 'project-page-title';
+        titleNameEl.textContent = projectTitle;
+        titleBlockEl.appendChild(titleNameEl);
+        const titleCatEl = document.createElement('div');
+        titleCatEl.id = 'project-page-subtitle';
+        titleCatEl.textContent = PROJECT_CATEGORIES[Math.floor(tileIndex / 3)];
+        titleBlockEl.appendChild(titleCatEl);
+        scrollEl.appendChild(titleBlockEl);
+
         const contentEl = document.createElement('div');
         contentEl.id = 'project-content';
         Object.assign(contentEl.style, { width: '100%', pointerEvents: 'auto' });
@@ -1055,15 +1031,24 @@ document.addEventListener('DOMContentLoaded', function () {
         scrollEl.appendChild(contentEl);
         document.body.appendChild(scrollEl);
 
-        // Measure and animate content in
+        // Measure and animate title block + content in
         requestAnimationFrame(() => {
-          const ease      = 'cubic-bezier(0.22, 1, 0.36, 1)';
-          const titleEl   = contentEl.querySelector('.credits-panel-title');
+          const ease = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
+          // Title block fades + slides up on all devices
+          titleBlockEl.style.opacity   = '0';
+          titleBlockEl.style.transform = 'translateY(16px)';
+          titleBlockEl.style.transition = 'none';
+          requestAnimationFrame(() => {
+            titleBlockEl.style.transition = `opacity 0.45s ease, transform 0.55s ${ease}`;
+            titleBlockEl.style.opacity   = '1';
+            titleBlockEl.style.transform = 'none';
+          });
 
           if (isMobile) {
-            // Mobile: single column — everything fades + slides up
-            contentEl.style.opacity   = '0';
-            contentEl.style.transform = 'translateY(24px)';
+            // Mobile: single column — content fades + slides up
+            contentEl.style.opacity    = '0';
+            contentEl.style.transform  = 'translateY(24px)';
             contentEl.style.transition = 'none';
             requestAnimationFrame(() => {
               contentEl.style.transition = `opacity 0.4s ease, transform 0.5s ${ease}`;
@@ -1072,23 +1057,15 @@ document.addEventListener('DOMContentLoaded', function () {
             });
           } else {
             // Desktop: two-column fly-in (left from left, right from right)
-            const leftCol   = contentEl.querySelector('.project-below-left');
-            const rightCol  = contentEl.querySelector('.project-below-right');
-            const creditLines = leftCol ? leftCol.querySelectorAll('p:not(.credits-panel-title)') : [];
+            const leftCol     = contentEl.querySelector('.project-below-left');
+            const rightCol    = contentEl.querySelector('.project-below-right');
+            const creditLines = leftCol ? leftCol.querySelectorAll('p') : [];
 
-            if (titleEl && rightCol && leftCol) {
-              const titleRect      = titleEl.getBoundingClientRect();
-              const colRect        = leftCol.getBoundingClientRect();
-              const titleMarginBot = parseFloat(getComputedStyle(titleEl).marginBottom);
-              rightCol.style.paddingTop = `${titleRect.bottom - colRect.top + titleMarginBot}px`;
-            }
-
-            const leftEls = titleEl ? [titleEl, ...creditLines] : [...creditLines];
-            leftEls.forEach(p => { p.style.opacity = '0'; p.style.transform = 'translateX(-48px)'; p.style.transition = 'none'; });
+            creditLines.forEach(p => { p.style.opacity = '0'; p.style.transform = 'translateX(-48px)'; p.style.transition = 'none'; });
             if (rightCol) { rightCol.style.opacity = '0'; rightCol.style.transform = 'translateX(48px)'; rightCol.style.transition = 'none'; }
 
             requestAnimationFrame(() => {
-              leftEls.forEach(p => { p.style.transition = `opacity 0.5s ease, transform 0.65s ${ease}`; p.style.opacity = '1'; p.style.transform = 'none'; });
+              creditLines.forEach(p => { p.style.transition = `opacity 0.5s ease, transform 0.65s ${ease}`; p.style.opacity = '1'; p.style.transform = 'none'; });
               if (rightCol) { rightCol.style.transition = `opacity 0.5s ease, transform 0.65s ${ease}`; rightCol.style.opacity = '1'; rightCol.style.transform = 'none'; }
             });
           }
