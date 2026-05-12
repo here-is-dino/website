@@ -564,7 +564,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Per-project page title — reserved for future use; empty means no swap.
   const PROJECT_TITLES = {
     0: 'Vi', 1: 'Far Away from Time', 2: 'The Object',
-    3: 'Payhawk AI', 4: 'A Small Step', 5: 'Payhawk Ad',
+    3: 'Payhawk AI Spend Management', 4: 'One Small Cycle', 5: 'Payhawk Ad',
     6: 'Snow', 7: 'Submarine', 8: 'Alien',
   };
   const PROJECT_CATEGORIES = ['Short Film', 'Ad', 'Experimental']; // indexed by row
@@ -642,9 +642,50 @@ document.addEventListener('DOMContentLoaded', function () {
 <p class="project-body">This was my second short film, so I decided to work on a larger scale. We had a proper small crew and spent four days travelling across different locations in Bulgaria, following our couple through a frozen world where time had stopped.</p>
 <p class="project-body">The film was warmly welcomed at several festivals. I even received a small award statuette from Barcelona. Check it <a href="https://youtu.be/InZIVui9Ccg?si=8Z0p8EydMbt7CPBy" target="_blank" rel="noopener noreferrer">here</a>.</p>`,
     },
-    2: { fullscreen: true, title: `<span class="title-main">The Object</span>`,   titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
-    3: { fullscreen: true, title: `<span class="title-main">Payhawk AI</span>`,   titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
-    4: { fullscreen: true, title: `<span class="title-main">A Small Step</span>`, titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
+    2: { fullscreen: true, title: `<span class="title-main">The Object</span>`, titleStyle: 'left:40%',
+      credits: `
+<p><span class="credit-role">Written by </span><span class="credit-name">Yakim Petrov &amp; Stefan Goncharov</span></p>
+<p><span class="credit-role">Directed by </span><span class="credit-name">Deyan Tsvyatkov</span></p>
+<p><span class="credit-role">Director of Photography </span><span class="credit-name">Nikola Atanassov</span></p>
+<p><span class="credit-role">Production Design </span><span class="credit-name">Johana Trayanova</span></p>
+<p><span class="credit-role">Costume Design </span><span class="credit-name">Mirella Vassileva</span></p>
+<p><span class="credit-role">Edited by </span><span class="credit-name">Deyan Tsvyatkov</span></p>
+<p><span class="credit-role">Sound Design by </span><span class="credit-name">Rossen Pavlov</span></p>
+<p><span class="credit-role">Original Music by </span><span class="credit-name">Dobromir Kissiyov</span></p>
+<p><span class="credit-name">Featuring Jordan Rassin and Vittoria Nikolova</span></p>
+<p><span class="credit-role">Produced by </span><span class="credit-name">Emil Nikolov</span></p>
+<p><span class="credit-name">A Pulvis Production</span></p>`,
+      description: `
+<p class="project-subheader">Is it possible to put the grief in order?</p>
+<p class="project-body">This is my latest short – about a person struggling to find the proper place of the urn with the remains of his deceased mother. I had the opportunity to work again with the wonderful actor Jordan Rassin and set a clean and claustrophobic world for his pedantic character. You can watch it <a href="https://youtu.be/ZDjzWlhmvRw?si=-v6XkPnR6yX1iY-d" target="_blank" rel="noopener noreferrer">here</a>.</p>`,
+    },
+    3: { fullscreen: true, title: `<span class="title-main">Payhawk AI</span>`, titleStyle: 'left:40%',
+      category: 'Commercial',
+      credits: `
+<p><span class="credit-role">Produced by </span><span class="credit-name">Nikol Dragneva</span></p>
+<p><span class="credit-role">Directed by </span><span class="credit-name">Deyan Tsvyatkov</span></p>
+<p><span class="credit-role">Director of Photography </span><span class="credit-name">Nikola Atanassov</span></p>
+<p><span class="credit-role">Production Design </span><span class="credit-name">Ralitsa Kamenova</span></p>
+<p><span class="credit-role">Edited by </span><span class="credit-name">Evtim Todorov</span></p>
+<p><span class="credit-role">CGI </span><span class="credit-name">Stoimen Dimitrov</span></p>
+<p><span class="credit-role">Sound Design by </span><span class="credit-name">Rossen Pavlov</span></p>`,
+      description: `
+<p class="project-subheader">AI agents organising your business.</p>
+<p class="project-body">When technology takes over more and more of our lives, transparency becomes essential. That's why we chose to shoot our characters in the emptiness of a 20-meter-high studio space, later integrating the sleek software interface around them. You can find it in Payhawk's YouTube <a href="https://youtu.be/LX8QqJrrMZ8?si=UY4QYFr9Jp_bXF6u" target="_blank" rel="noopener noreferrer">here</a>.</p>`,
+    },
+    4: { fullscreen: true, title: `<span class="title-main">One Small Cycle</span>`, titleStyle: 'left:40%',
+      credits: `
+<p><span class="credit-role">Written &amp; Directed by </span><span class="credit-name">Deyan Tsvyatkov</span></p>
+<p><span class="credit-role">Produced by </span><span class="credit-name">Leda Dragieva</span></p>
+<p><span class="credit-role">Director of Photography </span><span class="credit-name">Dimitar Tenev</span></p>
+<p><span class="credit-role">Production Design </span><span class="credit-name">Mirela Vasileva &amp; Johanna Trayanova</span></p>
+<p><span class="credit-role">Sound Design </span><span class="credit-name">Daniel Ivanov</span></p>
+<p><span class="credit-name">Featuring Kamen Kolarov</span></p>`,
+      description: `
+<p class="project-subheader">We could be all superheroes.</p>
+<p class="project-body">This was a campaign I did with Fine Acts aimed at drawing attention to climate change. We came up with the premise of an ordinary family man making the heroic decision to abandon the comfort of his car for the adventure of riding his old bicycle — a small step for a man, a giant revolution for mankind.</p>
+<p class="project-body">With an astronaut costume and a garage on the outskirts of the city, we managed to achieve the epic scale of a Hollywood blockbuster. Definitely check it out <a href="https://vimeo.com/1096880691?fl=pl&fe=sh" target="_blank" rel="noopener noreferrer">here</a>.</p>`,
+    },
     5: { fullscreen: true, title: `<span class="title-main">Payhawk Ad</span>`,   titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
     6: { fullscreen: true, title: `<span class="title-main">Snow</span>`,          titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
     7: { fullscreen: true, title: `<span class="title-main">Submarine</span>`,    titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
@@ -1026,7 +1067,7 @@ document.addEventListener('DOMContentLoaded', function () {
         titleBlockEl.appendChild(titleNameEl);
         const titleCatEl = document.createElement('div');
         titleCatEl.id = 'project-page-subtitle';
-        titleCatEl.textContent = PROJECT_CATEGORIES[Math.floor(tileIndex / 3)];
+        titleCatEl.textContent = projectContent?.category || PROJECT_CATEGORIES[Math.floor(tileIndex / 3)];
         titleBlockEl.appendChild(titleCatEl);
         scrollEl.appendChild(titleBlockEl);
 
