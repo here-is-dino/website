@@ -668,10 +668,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const scrollEl  = document.getElementById('project-scroll');
     if (creditsEl) { creditsEl.style.opacity = '0'; setTimeout(() => creditsEl.remove(), 300); }
     if (scrollEl) {
-      scrollEl.style.transition = 'opacity 0.18s ease';
-      scrollEl.style.opacity    = '0';
       scrollEl.style.pointerEvents = 'none';
-      setTimeout(() => scrollEl.remove(), 220);
+      scrollEl.style.transition    = 'opacity 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)';
+      scrollEl.style.opacity       = '0';
+      scrollEl.style.transform     = 'translateY(48px)';
+      setTimeout(() => scrollEl.remove(), 380);
     }
 
     // Clean up document wheel forwarder
