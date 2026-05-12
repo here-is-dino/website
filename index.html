@@ -665,11 +665,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Fade out and remove all project page content
     const creditsEl = document.getElementById('project-credits-left');
-    const contentEl = document.getElementById('project-content');
     const scrollEl  = document.getElementById('project-scroll');
-    if (creditsEl) { creditsEl.style.opacity = '0'; setTimeout(() => creditsEl.remove(), 500); }
-    if (contentEl) contentEl.style.opacity = '0';
-    if (scrollEl)  setTimeout(() => scrollEl.remove(), 500);
+    if (creditsEl) { creditsEl.style.opacity = '0'; setTimeout(() => creditsEl.remove(), 300); }
+    if (scrollEl) {
+      scrollEl.style.transition = 'opacity 0.18s ease';
+      scrollEl.style.opacity    = '0';
+      scrollEl.style.pointerEvents = 'none';
+      setTimeout(() => scrollEl.remove(), 220);
+    }
 
     // Clean up document wheel forwarder
     if (overlay._docWheelHandler) {
