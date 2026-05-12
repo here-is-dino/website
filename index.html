@@ -328,12 +328,11 @@
         width:  calc(48vw * 1.501) !important;
         height: 48vw !important;
       }
-      /* Explicit stage width + margin:auto for reliable centering */
-      #stage { width: calc(48vw * 1.501); margin: 0 auto; }
+      /* Stage at scatter width so body flex can centre it correctly */
+      #stage { width: calc(48vw * 1.7778); margin: 0 auto; }
 
-      /* 2-column grid — hide the rightmost column, tighter gap */
-      #tile-grid { grid-template-columns: 1fr 1fr; gap: 1px !important; }
-      .tile[data-col="2"] { display: none; }
+      /* 3-column grid with tighter gap */
+      #tile-grid { gap: 1px !important; }
 
       /* Row labels don't make sense without hover */
       .row-label { display: none; }
@@ -1092,10 +1091,8 @@ document.addEventListener('DOMContentLoaded', function () {
   function applyScatter(p) {
     window.__scatterProgress = p;
     const H = wrap.offsetHeight;
-    // Mobile uses 8/9 so each tile in the 2-col × 3-row grid lands at 4:3
-    const ratioEnd = isMobile ? (8 / 9) : RATIO_END;
-    const ratio = RATIO_START + (ratioEnd - RATIO_START) * p;
-    const W = isMobile ? Math.min(H * ratio, window.innerWidth * 0.96) : H * ratio;
+    const ratio = RATIO_START + (RATIO_END - RATIO_START) * p;
+    const W = H * ratio;
     wrap.style.width = `${W}px`;
     const dist = window.__scatterEnergy || 0.15;
 
@@ -1107,13 +1104,9 @@ document.addEventListener('DOMContentLoaded', function () {
       { x: -1, y:  0 }, { x:  1, y:  0 }, { x:  0, y:  0 },
       { x: -1, y:  1 }, { x:  1, y:  1 }, { x:  0, y:  1 },
     ];
-    const dirs = isMobile ? MOBILE_DIRS : DIRS;
-    // On mobile, scale horizontal scatter so column gap = row gap:
-    // col_gap = 2·W·distX  row_gap = H·dist  → equal when distX = H·dist/(2·W)
-    const distX = isMobile ? dist * H / (2 * W) : dist;
     const bottomShift = H * dist * 0.4 * p;
     tiles.forEach((tile, i) => {
-      tile.style.translate = `${dirs[i].x * W * distX * p}px ${dirs[i].y * H * dist * p}px`;
+      tile.style.translate = `${DIRS[i].x * W * dist * p}px ${DIRS[i].y * H * dist * p}px`;
     });
     wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
 
@@ -1131,7 +1124,7 @@ document.addEventListener('DOMContentLoaded', function () {
     video9.style.opacity = String(p);
 
     // Gap between tiles grows with scatter progress
-    tileGrid.style.gap = `${Math.round(p * (isMobile ? 1 : 10))}px`;
+    tileGrid.style.gap = `${Math.round(p * (isMobile ? 1 : 10))}px`; // keep 1px gap on mobile
 
     // Keep row labels glued to their anchor tiles while visible
     rowLabels.forEach(row => {
