@@ -413,9 +413,11 @@
       /* Row labels don't make sense without hover */
       .row-label { display: none; }
 
+      #project-title-block { padding: 40px 24px 14px; }
+
       /* Project page — single column: title → subtitle → description → credits */
       .project-below-mobile {
-        padding: 72px 20px 32px;   /* video → title, bottom */
+        padding: 36px 20px 32px;
         font-family: 'EB Garamond', Georgia, serif;
         color: #3d2f1e;
       }
@@ -1002,6 +1004,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         // Reserve space for the overlay (which arrives at onOverlayLanded)
         scrollEl.style.paddingTop = `${targetH}px`;
+
+        // Mobile: fade content out as it scrolls up under the fixed video
+        if (isMobile) {
+          const fade = 56; // px fade zone at the video boundary
+          const mask = `linear-gradient(to bottom, transparent ${targetH}px, black ${targetH + fade}px)`;
+          scrollEl.style.webkitMaskImage = mask;
+          scrollEl.style.maskImage = mask;
+        }
 
         // Title block — scrolls with content, sits directly below the video
         const titleBlockEl = document.createElement('div');
