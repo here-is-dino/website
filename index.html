@@ -323,15 +323,15 @@
 
     /* ── Mobile ─────────────────────────────────────────────── */
     @media (max-width: 768px) {
-      /* Portrait fills the screen width with correct aspect ratio */
+      /* Portrait sized for a compact 2-visible-column layout */
       #portrait-wrap {
-        width:  calc(48vw * 1.501) !important;
-        height: 48vw !important;
+        width:  calc(43.2vw * 1.501) !important;
+        height: 43.2vw !important;
       }
-      /* Stage at scatter width so body flex can centre it correctly */
-      #stage { width: calc(48vw * 1.7778); margin: 0 auto; }
+      /* Left-align stage so col 3 hangs off the right edge */
+      #stage { margin-left: 4vw; margin-right: auto; width: auto; }
 
-      /* 3-column grid with tighter gap */
+      /* 3-column grid, tight gap — col 2 stays partially off-screen */
       #tile-grid { gap: 1px !important; }
 
       /* Row labels don't make sense without hover */
@@ -1091,7 +1091,9 @@ document.addEventListener('DOMContentLoaded', function () {
   function applyScatter(p) {
     window.__scatterProgress = p;
     const H = wrap.offsetHeight;
-    const ratio = RATIO_START + (RATIO_END - RATIO_START) * p;
+    // Mobile: use 8/3 so 3 tile-widths = ~115 vw → col 3 hangs ~15 vw off-screen right
+    const ratioEnd = isMobile ? (8 / 3) : RATIO_END;
+    const ratio = RATIO_START + (ratioEnd - RATIO_START) * p;
     const W = H * ratio;
     wrap.style.width = `${W}px`;
     const dist = window.__scatterEnergy || 0.15;
@@ -1104,9 +1106,11 @@ document.addEventListener('DOMContentLoaded', function () {
       { x: -1, y:  0 }, { x:  1, y:  0 }, { x:  0, y:  0 },
       { x: -1, y:  1 }, { x:  1, y:  1 }, { x:  0, y:  1 },
     ];
+    // On mobile equalise col-gap and row-gap: distX = dist·H/(2·W)
+    const distX = isMobile ? dist * H / (2 * W) : dist;
     const bottomShift = H * dist * 0.4 * p;
     tiles.forEach((tile, i) => {
-      tile.style.translate = `${DIRS[i].x * W * dist * p}px ${DIRS[i].y * H * dist * p}px`;
+      tile.style.translate = `${DIRS[i].x * W * distX * p}px ${DIRS[i].y * H * dist * p}px`;
     });
     wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
 
