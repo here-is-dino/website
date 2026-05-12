@@ -825,6 +825,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const tileRect = tile.getBoundingClientRect();
     const vid      = tile.querySelector('video');
 
+    // Hide the active tile immediately so the scale-snap below isn't visible
+    tile.style.opacity = '0';
+
     // Snap tile scales back to 1 so the FLIP math is clean
     tiles.forEach(t => { t.style.transition = ''; t.style.scale = '1'; });
 
@@ -968,22 +971,23 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     activeProjectTile = tile;
-    document.body.appendChild(overlay);
-    tile.style.opacity = '0'; // hide the now-empty tile slot
 
-    // Push a history entry so browser back / trackpad swipe triggers closeProject
-    if (pushHistory) history.pushState({ projectView: true }, '');
-
-    overlay.style.cursor = 'pointer';
-    overlay.addEventListener('click', () => history.back());
-
-    // FLIP: transform overlay so it visually starts at the tile's current screen rect
+    // FLIP: set initial transform BEFORE adding to DOM so the overlay never
+    // appears at its final position — prevents the one-frame jump on Safari iOS
     const dx = tileRect.left + tileRect.width  / 2 - (targetL + targetW / 2);
     const dy = tileRect.top  + tileRect.height / 2 - (targetT + targetH / 2);
     const sx = tileRect.width  / targetW;
     const sy = tileRect.height / targetH;
     overlay.style.transformOrigin = 'center center';
     overlay.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+
+    document.body.appendChild(overlay);
+
+    // Push a history entry so browser back / trackpad swipe triggers closeProject
+    if (pushHistory) history.pushState({ projectView: true }, '');
+
+    overlay.style.cursor = 'pointer';
+    overlay.addEventListener('click', () => history.back());
 
     // Other tiles scatter further and fade out
     const W = wrap.offsetWidth, H = wrap.offsetHeight;
@@ -1005,6 +1009,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // For fullscreen: border-radius transitions from 8px → 0 with a delay so it only
     // starts squaring off in the final third of the animation (0.55s delay, 0.3s duration).
     requestAnimationFrame(() => {
+      overlay.getBoundingClientRect(); // flush layout so Safari commits the initial transform
       requestAnimationFrame(() => {
         if (isFullscreen) {
           overlay.style.transition = 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.28s ease 0.5s';
@@ -1018,7 +1023,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
           overlay.style.transition = 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.5s ease';
         }
-        overlay.style.transform = 'none';
+        overlay.style.transform = 'translate(0px, 0px) scale(1, 1)'; // explicit identity — 'none' can jump on Safari
       });
     });
 
