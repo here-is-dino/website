@@ -323,15 +323,15 @@
 
     /* ── Mobile ─────────────────────────────────────────────── */
     @media (max-width: 768px) {
-      /* Portrait sized for a compact 2-visible-column layout */
+      /* Portrait sized for a compact 3-column layout */
       #portrait-wrap {
         width:  calc(43.2vw * 1.501) !important;
         height: 43.2vw !important;
       }
-      /* Left-align stage so col 3 hangs off the right edge */
-      #stage { margin-left: 4vw; margin-right: auto; width: auto; }
+      /* Centre stage so portrait and title are centred */
+      #stage { margin: 0 auto; width: calc(43.2vw * 1.501); }
 
-      /* 3-column grid, tight gap — col 2 stays partially off-screen */
+      /* 3-column grid, tight gap — col 3 partially off-screen right */
       #tile-grid { gap: 1px !important; }
 
       /* Row labels don't make sense without hover */
@@ -1091,8 +1091,9 @@ document.addEventListener('DOMContentLoaded', function () {
   function applyScatter(p) {
     window.__scatterProgress = p;
     const H = wrap.offsetHeight;
-    // Mobile: use 8/3 so 3 tile-widths = ~115 vw → col 3 hangs ~15 vw off-screen right
-    const ratioEnd = isMobile ? (8 / 3) : RATIO_END;
+    // Mobile: stage is centred at ~17.6 vw from left; ratioEnd 2.3 gives W≈95 vw
+    // so cols 1+2 are roughly centred and col 3 is ~50% off-screen right.
+    const ratioEnd = isMobile ? 2.3 : RATIO_END;
     const ratio = RATIO_START + (ratioEnd - RATIO_START) * p;
     const W = H * ratio;
     wrap.style.width = `${W}px`;
