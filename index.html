@@ -679,11 +679,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // Bring other tiles home to their scatter positions
     const W    = wrap.offsetWidth, H = wrap.offsetHeight;
     const dist = window.__scatterEnergy || 0.15;
+    // Mobile uses a smaller horizontal energy (distX) to match what applyScatter set
+    const closeDist = isMobile ? dist * H / (2 * W) : dist;
     tiles.forEach((t, i) => {
       if (t === tile) return;
       t.style.transition = 'opacity 0.5s ease, translate 0.8s cubic-bezier(0.22, 1, 0.36, 1)';
       t.style.opacity    = '1';
-      t.style.translate  = `${DIRS[i].x * W * dist}px ${DIRS[i].y * H * dist}px`;
+      t.style.translate  = `${DIRS[i].x * W * closeDist}px ${DIRS[i].y * H * dist}px`;
     });
 
     // On animation complete: move video back, remove overlay, re-enable grid
@@ -1188,7 +1190,8 @@ document.addEventListener('DOMContentLoaded', function () {
         t.style.transition = GROW_POP;
         t.style.scale = '1.25';
         growTimer = setTimeout(() => {
-          if (!isMobile && !isTablet && t.matches(':hover')) {
+          // Desktop: only drift if still hovering; touch: always drift after first tap
+          if ((isMobile || isTablet) || t.matches(':hover')) {
             t.style.transition = GROW_SLOW;
             t.style.scale = '1.6';
           }
