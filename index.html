@@ -1344,6 +1344,19 @@ document.addEventListener('DOMContentLoaded', function () {
         applyScatter(1);
         tiles.forEach(t => t.classList.add('scattered'));
         scatterComplete = true;
+        // On touch devices, pin poster as CSS background so it fills the tile
+        // correctly — iOS Safari does not apply object-fit:cover to video poster.
+        if (isMobile || isTablet) {
+          videoTiles.forEach(({ tile, vid }) => {
+            const inner  = tile.querySelector('.tile-inner');
+            const poster = vid.getAttribute('poster');
+            if (inner && poster && !inner.style.backgroundImage) {
+              inner.style.backgroundImage    = `url('${poster}')`;
+              inner.style.backgroundSize     = 'cover';
+              inner.style.backgroundPosition = 'center';
+            }
+          });
+        }
         return;
       }
       applyScatter(progress);
