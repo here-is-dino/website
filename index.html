@@ -407,8 +407,9 @@ document.addEventListener('DOMContentLoaded', function () {
   const IMG_SRC = 'Portrait.jpg';
 
   // Declare core elements first — everything below depends on these
-  const isMobile = window.matchMedia('(pointer: coarse) and (max-width: 768px)').matches;
-  const isTablet = window.matchMedia('(pointer: coarse) and (min-width: 769px) and (max-width: 1200px)').matches;
+  // Match the CSS breakpoints exactly — width-only for mobile, width+pointer for tablet
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  const isTablet = window.matchMedia('(min-width: 769px) and (max-width: 1200px) and (pointer: coarse)').matches;
 
   const wrap     = document.getElementById('portrait-wrap');
   const tileGrid = document.getElementById('tile-grid');
