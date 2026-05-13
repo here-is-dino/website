@@ -1412,8 +1412,17 @@ document.addEventListener('DOMContentLoaded', function () {
               const rowIdx = Math.floor(tiles.indexOf(tile) / 3);
               if (rowIdx !== prevRowIdx) {
                 // New row — update text and animate in
-                const wrapRect = wrap.getBoundingClientRect();
-                mobileRowLabelEl.style.top = `${wrapRect.top - 72}px`;
+                // Tablet: position above the tile at its max zoom (scale 1.6) so the
+                // label is never overlapped. Mobile: stay relative to the wrap top.
+                let labelTop;
+                if (isTablet) {
+                  const tileRect = tile.getBoundingClientRect();
+                  const centerY  = tileRect.top + tileRect.height / 2;
+                  labelTop = Math.round(centerY - tileRect.height * 0.8) - 16;
+                } else {
+                  labelTop = wrap.getBoundingClientRect().top - 72;
+                }
+                mobileRowLabelEl.style.top = `${labelTop}px`;
                 const mrlTextEl = mobileRowLabelEl.querySelector('.mrl-text');
                 if (mrlTextEl) mrlTextEl.textContent = rowLabels[rowIdx]?.el.textContent || '';
                 if (mobileRowLabelEl._hideTimer) { clearTimeout(mobileRowLabelEl._hideTimer); mobileRowLabelEl._hideTimer = null; }
