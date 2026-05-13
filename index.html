@@ -1371,7 +1371,9 @@ document.addEventListener('DOMContentLoaded', function () {
         };
         const leave = () => {
           vid.pause();
-          if (inner) inner.style.backgroundImage = '';
+          // Only drop the poster once the video has a decoded frame (readyState ≥ 2).
+          // If it hasn't buffered yet, keep the poster so the portrait slice can't show through.
+          if (inner && vid.readyState >= 2) inner.style.backgroundImage = '';
           restoreAll();
         };
         tile.addEventListener('mouseenter', enter, { signal });
