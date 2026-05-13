@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const PROJECT_TITLES = {
     0: 'Vi', 1: 'Far Away from Time', 2: 'The Object',
     3: 'AI Spend Management', 4: 'One Small Cycle', 5: 'Global Spend Management',
-    6: 'Snow', 7: 'Submarine', 8: 'Alien',
+    6: 'Snow', 7: 'Submarine', 8: 'The Alien',
   };
   const PROJECT_CATEGORIES = ['Short Film', 'Ad', 'Experimental']; // indexed by row
 
@@ -704,9 +704,30 @@ document.addEventListener('DOMContentLoaded', function () {
 <p class="project-subheader">Work at scale with ease.</p>
 <p class="project-body">Another commercial I shot for Payhawk. We wanted to capture the fast-paced dynamics of a working day made easier through the use of their accounting software. We filmed in their office in Sofia, where I had the pleasure of working with Nikola Parashkevov, a colleague from my acting class at the academy.</p>`,
     },
-    6: { fullscreen: true, title: `<span class="title-main">Snow</span>`,          titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
-    7: { fullscreen: true, title: `<span class="title-main">Submarine</span>`,    titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
-    8: { fullscreen: true, title: `<span class="title-main">Alien</span>`,         titleStyle: 'left:40%', credits: PLACEHOLDER_CREDITS, description: PLACEHOLDER_DESC },
+    6: { fullscreen: true, title: `<span class="title-main">Snow</span>`, titleStyle: 'left:40%',
+      credits: `
+<p><span class="credit-role">Directed by </span><span class="credit-name">Deyan Tsvyatkov</span></p>
+<p><span class="credit-role">Director of Photography </span><span class="credit-name">Dimitar Tenev</span></p>
+<p><span class="credit-role">Editing </span><span class="credit-name">Deyan Tsvyatkov</span></p>
+<p><span class="credit-role">Music by </span><span class="credit-name">Leifur James</span></p>`,
+      description: `
+<p class="project-subheader">With each passing year, there is less snowfall in the Bulgarian mountains.</p>
+<p class="project-body">Since winters are getting warmer and warmer, we wanted to properly capture the snowy peaks of Vitosha Mountain. I got in touch with Jordan Matchirski, who is not only a great snowboarder, but also manages a ski school, produces artificial snow, and spreads it with his snow groomer. Check it <a href="https://vimeo.com/534404572?fl=pl&fe=sh" target="_blank" rel="noopener noreferrer">here</a>.</p>`,
+    },
+    7: { fullscreen: true, title: `<span class="title-main">Submarine</span>`, titleStyle: 'left:40%',
+      credits: `
+<p><span class="credit-name">Shot, directed and edited by Deyan Tsvyatkov</span></p>
+<p><span class="credit-name">Featuring Plamen Petkov &amp; Krassimir Mitov</span></p>`,
+      description: `
+<p class="project-body">My best friends from the academy had recorded a song, so I really wanted to make a video for them and try something new. We shot for an entire day in the studio, with them changing dozens of costumes. I later dedicated days to editing and arranging grids in After Effects. It's <a href="https://vimeo.com/839061073?fl=pl&fe=sh" target="_blank" rel="noopener noreferrer">here</a>.</p>`,
+    },
+    8: { fullscreen: true, title: `<span class="title-main">The Alien</span>`, titleStyle: 'left:40%',
+      credits: `
+<p><span class="credit-name">Shot, directed and edited by Deyan Tsvyatkov</span></p>
+<p><span class="credit-name">Featuring Deyan Georgiev</span></p>`,
+      description: `
+<p class="project-body">During Covid, the government was throwing money at artists for random projects, so I decided to experiment with a friend of mine – a contemporary dancer. Deyan has a great feeling for music and movement and I truly enjoyed our creative process. Watch it <a href="https://youtu.be/5KLD2DFogkQ" target="_blank" rel="noopener noreferrer">here</a>.</p>`,
+    },
   };
 
   let hasScattered      = false;
