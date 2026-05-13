@@ -392,6 +392,8 @@
       #portrait-wrap {
         width:  calc(35vh * 1.501) !important;
         height: 35vh !important;
+        transform: scale(0.7);
+        transform-origin: center center;
       }
       #stage { width: calc(35vh * 1.501); margin: 0 auto; }
       .row-label { display: none; }
@@ -1216,6 +1218,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const ratio = RATIO_START + (ratioEnd - RATIO_START) * p;
     const W = H * ratio;
     wrap.style.width = `${W}px`;
+
+    // Tablet: assembled portrait is 30% smaller; expand to full as scatter progresses
+    if (isTablet) wrap.style.transform = `scale(${0.7 + 0.3 * p})`;
     const dist = window.__scatterEnergy || 0.15;
 
     // Tiles scatter outward; grid drifts down slightly for vertical balance.
