@@ -1550,11 +1550,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function step() {
       const ease = window.__scatterEase || 0.075;
       progress += (1 - progress) * ease;
-      if (1 - progress < 0.05) {
-        progress = 1;
-        applyScatter(1);
-        tiles.forEach(t => t.classList.add('scattered'));
+
+      // Unlock interactions early — visually indistinguishable from complete
+      if (!scatterComplete && 1 - progress < 0.05) {
         scatterComplete = true;
+        tiles.forEach(t => t.classList.add('scattered'));
         // On touch devices, pin poster as CSS background so it fills the tile
         // correctly — iOS Safari does not apply object-fit:cover to video poster.
         if (isMobile || isTablet) {
@@ -1568,6 +1568,12 @@ document.addEventListener('DOMContentLoaded', function () {
             }
           });
         }
+      }
+
+      // Keep animating smoothly until truly done, then stop
+      if (1 - progress < 0.001) {
+        progress = 1;
+        applyScatter(1);
         return;
       }
       applyScatter(progress);
