@@ -1550,7 +1550,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function step() {
       const ease = window.__scatterEase || 0.075;
       progress += (1 - progress) * ease;
-      if (1 - progress < 0.001) {
+      if (1 - progress < 0.05) {
         progress = 1;
         applyScatter(1);
         tiles.forEach(t => t.classList.add('scattered'));
