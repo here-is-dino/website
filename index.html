@@ -401,12 +401,10 @@
     /* ── Tablet (touch, 769–1200 px) ────────────────────────── */
     @media (pointer: coarse) and (min-width: 769px) and (max-width: 1200px) {
       #portrait-wrap {
-        width:  calc(35vh * 1.501) !important;
+        width:  calc(35vh * 1.7778) !important;
         height: 35vh !important;
-        transform: scale(0.7);
-        transform-origin: center center;
       }
-      #stage { width: calc(35vh * 1.501); margin: 0 auto; }
+      #stage { width: calc(35vh * 1.7778); margin: 0 auto; }
       .row-label { display: none; }
     }
 
@@ -1287,14 +1285,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // Mobile: stage is centred at ~17.6 vw from left; ratioEnd 2.3 gives W≈95 vw
     // so cols 1+2 are roughly centred and col 3 is ~50% off-screen right.
     const ratioEnd = isMobile ? 2.3 : RATIO_END;
-    // Desktop: wrap is fixed at RATIO_END so the video frame always matches the grid.
-    // Mobile/tablet: keep the RATIO_START→END growth animation.
-    const ratio = (isMobile || isTablet) ? RATIO_START + (ratioEnd - RATIO_START) * p : RATIO_END;
+    // Desktop + tablet: wrap fixed at RATIO_END so video frame always matches the grid.
+    // Mobile: keep the RATIO_START→END growth animation.
+    const ratio = isMobile ? RATIO_START + (ratioEnd - RATIO_START) * p : RATIO_END;
     const W = H * ratio;
     wrap.style.width = `${W}px`;
-
-    // Tablet: assembled portrait is 30% smaller; expand to full as scatter progresses
-    if (isTablet) wrap.style.transform = `scale(${0.7 + 0.3 * p})`;
     const dist = window.__scatterEnergy || 0.15;
 
     // Tiles scatter outward; grid drifts down slightly for vertical balance.
@@ -1330,7 +1325,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Gap between tiles grows with scatter progress
-    tileGrid.style.gap = `${Math.round(p * (isMobile ? 3 : 10))}px`;
+    tileGrid.style.gap = `${Math.round(p * (isMobile ? 3 : isTablet ? 5 : 10))}px`;
 
     // Keep row labels glued to their anchor tiles while visible
     rowLabels.forEach(row => {
@@ -1662,7 +1657,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     portraitVideoTriggered = false;
     wrap.style.transform = '';
-    wrap.style.width = `${wrap.offsetHeight * ((!isMobile && !isTablet) ? RATIO_END : RATIO_START)}px`;
+    wrap.style.width = `${wrap.offsetHeight * (isMobile ? RATIO_START : RATIO_END)}px`;
     window.__scatterProgress = 0;
     tileGrid.style.gap = '0px';
     nameEl.style.opacity = '0';
