@@ -516,10 +516,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!portraitVideoEl || portraitVideoEl.readyState < 2) return;
     try {
       const canvas = document.createElement('canvas');
-      canvas.width  = portraitVideoEl.videoWidth  || portraitVideoEl.offsetWidth;
-      canvas.height = portraitVideoEl.videoHeight || portraitVideoEl.offsetHeight;
-      canvas.getContext('2d').drawImage(portraitVideoEl, 0, 0);
-      const url = canvas.toDataURL('image/jpeg', 0.92);
+      // Use display size (not native resolution) — much cheaper on mobile
+      canvas.width  = portraitVideoEl.offsetWidth  || 400;
+      canvas.height = portraitVideoEl.offsetHeight || 300;
+      canvas.getContext('2d').drawImage(portraitVideoEl, 0, 0, canvas.width, canvas.height);
+      const url = canvas.toDataURL('image/jpeg', 0.85);
       tiles.forEach(t => t.style.backgroundImage = `url('${url}')`);
       tileGrid.style.setProperty('--portrait-src', `url('${url}')`);
     } catch (e) {}
@@ -1680,7 +1681,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (portraitVideoTriggered || hasScattered) return;
     portraitVideoTriggered = true;
     clearTimeout(autoScatterTimer);
-    portraitVideoEl.play().catch(() => { capturePortraitFrame(); scatter(); });
+    portraitVideoEl.play().catch(() => scatter());
   }
 
   function onMouseEnter() { playPortraitVideo(); }
@@ -1691,14 +1692,19 @@ document.addEventListener('DOMContentLoaded', function () {
     if (touchY0 === null) return;
     const dy = Math.abs(e.touches[0].clientY - touchY0);
     const dx = Math.abs(e.touches[0].clientX - touchX0);
-    if (dy > 30 || dx > 30) { capturePortraitFrame(); scatter(); }
+    if (dy > 30 || dx > 30) scatter();
   }
 
-  // Capture last frame then scatter 1.0s before video ends
+  // Pre-capture frame 2s before end so the canvas work is done before scatter starts
+  let framePrecaptured = false;
   portraitVideoEl.addEventListener('timeupdate', () => {
     if (!portraitVideoEl.duration || hasScattered) return;
-    if (portraitVideoEl.duration - portraitVideoEl.currentTime <= 1.1) {
+    const remaining = portraitVideoEl.duration - portraitVideoEl.currentTime;
+    if (!framePrecaptured && remaining <= 2.1) {
+      framePrecaptured = true;
       capturePortraitFrame();
+    }
+    if (remaining <= 1.1) {
       scatter();
     }
   });
