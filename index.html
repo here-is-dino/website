@@ -1302,8 +1302,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const W = H * ratio;
     wrap.style.width = `${W}px`;
 
-    // Tablet: assembled portrait is 30% smaller; expand to full as scatter progresses
-    if (isTablet) wrap.style.transform = `scale(${0.7 + 0.3 * p})`;
     const dist = window.__scatterEnergy || 0.15;
 
     // Tiles scatter outward; grid drifts down slightly for vertical balance.
@@ -1320,7 +1318,11 @@ document.addEventListener('DOMContentLoaded', function () {
     tiles.forEach((tile, i) => {
       tile.style.translate = `${DIRS[i].x * W * distX * p}px ${DIRS[i].y * H * dist * p}px`;
     });
-    wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
+    // Tablet: combine scale + translateY in one assignment so neither overwrites the other
+    const translateY = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
+    wrap.style.transform = isTablet
+      ? `${translateY} scale(${0.7 + 0.3 * p})`
+      : translateY;
 
     // Portrait video cover fades out fast so captured tile slices take over
     if (portraitVideoEl && !portraitVideoEl.classList.contains('done')) {
@@ -1670,7 +1672,7 @@ document.addEventListener('DOMContentLoaded', function () {
       portraitVideoEl.currentTime = 0;
     }
     portraitVideoTriggered = false;
-    wrap.style.transform = '';
+    wrap.style.transform = isTablet ? 'scale(0.7)' : '';
     wrap.style.width = `${wrap.offsetHeight * ((!isMobile && !isTablet) ? RATIO_END : RATIO_START)}px`;
     window.__scatterProgress = 0;
     tileGrid.style.gap = '0px';
