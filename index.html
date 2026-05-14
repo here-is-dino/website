@@ -514,12 +514,12 @@ document.addEventListener('DOMContentLoaded', function () {
   // Capture the current portrait video frame → set as tile backgrounds + overlay
   function capturePortraitFrame() {
     if (!portraitVideoEl || portraitVideoEl.readyState < 2) return;
+    // On tablet the wrap scale animates during scatter, so a static canvas can't track
+    // the changing object-fit:cover crop — skip tile backgrounds entirely for tablet.
+    if (isTablet) return;
     try {
-      // On tablet the wrap has transform:scale(0.7), so the visual dimensions are 70% of layout.
-      // The canvas must match the visual size so object-fit:cover crops identically.
-      const visualScale = isTablet ? 0.7 : 1;
-      const cw = (portraitVideoEl.offsetWidth  || 400) * visualScale;
-      const ch = (portraitVideoEl.offsetHeight || 300) * visualScale;
+      const cw = portraitVideoEl.offsetWidth  || 400;
+      const ch = portraitVideoEl.offsetHeight || 300;
       const vw = portraitVideoEl.videoWidth   || cw;
       const vh = portraitVideoEl.videoHeight  || ch;
       // Replicate object-fit:cover so the canvas matches exactly what the video shows
@@ -1316,13 +1316,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
 
-    // Portrait video cover fades out fast so captured tile slices take over
+    // Portrait video: fast fade on desktop/mobile (canvas slices take over),
+    // slow fade on tablet (no canvas — video stays visible through first half of scatter)
     if (portraitVideoEl && !portraitVideoEl.classList.contains('done')) {
-      portraitVideoEl.style.opacity = String(Math.max(0, 1 - p * 10));
-      if (p >= 0.1) portraitVideoEl.classList.add('done');
+      const vidOpacity = isTablet ? Math.max(0, 1 - p * 2) : Math.max(0, 1 - p * 10);
+      portraitVideoEl.style.opacity = String(vidOpacity);
+      if (vidOpacity === 0) portraitVideoEl.classList.add('done');
     }
-    // Seamless frame overlay fades → individual tile slices become visible as gaps open (p=0→0.5)
-    tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p * 2)));
+    // Seamless frame overlay — not used on tablet (no static canvas), fade normally elsewhere
+    tileGrid.style.setProperty('--assembled-opacity', String(isTablet ? 0 : Math.max(0, 1 - p * 2)));
     // Trigger CSS crossfade once at p=0.7 — duration set by transition, independent of easing
     if (!crossfadeTriggered) {
       crossfadeTriggered = true;
