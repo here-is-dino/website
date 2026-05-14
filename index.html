@@ -515,19 +515,17 @@ document.addEventListener('DOMContentLoaded', function () {
   function capturePortraitFrame() {
     if (!portraitVideoEl || portraitVideoEl.readyState < 2) return;
     try {
-      // getBoundingClientRect gives exact fractional pixel dimensions the browser uses
-      const rect = portraitVideoEl.getBoundingClientRect();
-      const cw = rect.width  || 400;
-      const ch = rect.height || 300;
-      const vw = portraitVideoEl.videoWidth  || cw;
-      const vh = portraitVideoEl.videoHeight || ch;
-      // Replicate object-fit:cover with precise dimensions
+      const cw = portraitVideoEl.offsetWidth  || 400;
+      const ch = portraitVideoEl.offsetHeight || 300;
+      const vw = portraitVideoEl.videoWidth   || cw;
+      const vh = portraitVideoEl.videoHeight  || ch;
+      // Replicate object-fit:cover so the canvas matches exactly what the video shows
       const scale = Math.max(cw / vw, ch / vh);
       const sw = vw * scale, sh = vh * scale;
       const ox = (cw - sw) / 2, oy = (ch - sh) / 2;
       const canvas = document.createElement('canvas');
-      canvas.width  = Math.round(cw);
-      canvas.height = Math.round(ch);
+      canvas.width  = cw;
+      canvas.height = ch;
       canvas.getContext('2d').drawImage(portraitVideoEl, ox, oy, sw, sh);
       const url = canvas.toDataURL('image/jpeg', 0.85);
       tiles.forEach(t => t.style.backgroundImage = `url('${url}')`);
