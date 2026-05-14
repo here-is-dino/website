@@ -1713,16 +1713,18 @@ document.addEventListener('DOMContentLoaded', function () {
     if (dy > 30 || dx > 30) scatter();
   }
 
-  // Pre-capture frame 2s before end so the canvas work is done before scatter starts
+  // Pre-capture 2s before end (warms up GPU/canvas), then re-capture at scatter time
+  // so the canvas always matches the exact frame the video is showing when it fades out.
   let framePrecaptured = false;
   portraitVideoEl.addEventListener('timeupdate', () => {
     if (!portraitVideoEl.duration || hasScattered) return;
     const remaining = portraitVideoEl.duration - portraitVideoEl.currentTime;
     if (!framePrecaptured && remaining <= 2.1) {
       framePrecaptured = true;
-      capturePortraitFrame();
+      capturePortraitFrame(); // warm-up
     }
     if (remaining <= 1.1) {
+      capturePortraitFrame(); // sync canvas to the frame actually visible right now
       scatter();
     }
   });
