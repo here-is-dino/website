@@ -1708,7 +1708,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Scatter 0.4s before video ends; hold last frame (no loop)
   portraitVideoEl.addEventListener('timeupdate', () => {
     if (!portraitVideoEl.duration || hasScattered) return;
-    if (portraitVideoEl.duration - portraitVideoEl.currentTime <= 0.4) {
+    if (portraitVideoEl.duration - portraitVideoEl.currentTime <= 0.9) {
       capturePortraitFrame();
       scatter();
     }
@@ -1719,30 +1719,21 @@ document.addEventListener('DOMContentLoaded', function () {
     touchX0 = e.touches[0].clientX;
   }, { passive: true });
 
-  // Auto-scatter if no interaction within 4s
-  var autoScatterTimer = setTimeout(() => scatterWithCapture(), 4000);
+  var autoScatterTimer = null; // no auto-scatter
 
-  setTimeout(() => {
-    if (isMobile || isTablet) {
-      // Touch devices: tap portrait → play video; swipe anywhere → immediate scatter
-      wrap.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        playPortraitVideo();
-      }, { once: true, passive: false });
-      window.addEventListener('touchmove', onTouchMove, { passive: true });
-    } else {
-      wrap.addEventListener('mouseenter', onMouseEnter);
-      window.addEventListener('wheel', onWheel, { passive: true });
-      window.addEventListener('touchmove', onTouchMove, { passive: true });
-      // If cursor already over portrait when delay expires, play video now
-      if (wrap.matches(':hover')) playPortraitVideo();
-    }
-
-    // Cancel auto-scatter on any deliberate interaction
-    const cancelAuto = () => clearTimeout(autoScatterTimer);
-    window.addEventListener('touchend',  cancelAuto, { once: true, passive: true });
-    window.addEventListener('wheel',     cancelAuto, { once: true, passive: true });
-  }, 1000);
+  if (isMobile || isTablet) {
+    // Touch devices: tap portrait → play video; swipe anywhere → immediate scatter
+    wrap.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      playPortraitVideo();
+    }, { once: true, passive: false });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+  } else {
+    wrap.addEventListener('mouseenter', onMouseEnter);
+    window.addEventListener('wheel', onWheel, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    if (wrap.matches(':hover')) playPortraitVideo();
+  }
 
   // Browser back/forward buttons and trackpad swipes
   window.addEventListener('popstate', (e) => {
