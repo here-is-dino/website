@@ -1296,13 +1296,13 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
 
-    // Assembled overlay + portrait video fade out as tiles scatter (gone by p=0.5)
-    tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p * 2)));
+    // Portrait video fades out as project tile videos fade in — same pace, video plays through
+    tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p)));
     if (portraitVideoEl && !portraitVideoEl.classList.contains('done')) {
-      portraitVideoEl.style.opacity = String(Math.max(0, 1 - p * 2));
-      if (p >= 0.5) portraitVideoEl.classList.add('done');
+      portraitVideoEl.style.opacity = String(Math.max(0, 1 - p));
+      if (p >= 1) portraitVideoEl.classList.add('done');
     }
-    // Video tiles crossfade from portrait → first frame as scatter progresses
+    // Video tiles crossfade from portrait → project video as scatter progresses
     video.style.opacity  = String(p);
     video2.style.opacity = String(p);
     video3.style.opacity = String(p);
@@ -1689,27 +1689,24 @@ document.addEventListener('DOMContentLoaded', function () {
     if (portraitVideoTriggered || hasScattered) return;
     portraitVideoTriggered = true;
     clearTimeout(autoScatterTimer);
-    portraitVideoEl.play().catch(() => { capturePortraitFrame(); scatter(); });
+    portraitVideoEl.play().catch(() => scatter());
   }
 
-  function scatterWithCapture() { capturePortraitFrame(); scatter(); }
-
   function onMouseEnter() { playPortraitVideo(); }
-  function onWheel(e) { if (e.deltaY > 10) scatterWithCapture(); }
+  function onWheel(e) { if (e.deltaY > 10) scatter(); }
   let touchY0 = null;
   let touchX0 = null;
   function onTouchMove(e) {
     if (touchY0 === null) return;
     const dy = Math.abs(e.touches[0].clientY - touchY0);
     const dx = Math.abs(e.touches[0].clientX - touchX0);
-    if (dy > 30 || dx > 30) scatterWithCapture();
+    if (dy > 30 || dx > 30) scatter();
   }
 
-  // Scatter 0.4s before video ends; hold last frame (no loop)
+  // Trigger scatter 1.0s before video ends; video keeps playing through the transition
   portraitVideoEl.addEventListener('timeupdate', () => {
     if (!portraitVideoEl.duration || hasScattered) return;
-    if (portraitVideoEl.duration - portraitVideoEl.currentTime <= 0.9) {
-      capturePortraitFrame();
+    if (portraitVideoEl.duration - portraitVideoEl.currentTime <= 1.0) {
       scatter();
     }
   });
