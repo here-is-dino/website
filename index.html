@@ -91,15 +91,6 @@
       z-index: 3;
       pointer-events: none;
     }
-    /* Per-tile slice of the initial portrait video */
-    .tile-portrait-vid {
-      position: absolute;
-      width: 300%;
-      height: 300%;
-      object-fit: cover;
-      pointer-events: none;
-      z-index: 1;
-    }
 
     /* 3×3 tile grid */
     #tile-grid {
@@ -519,23 +510,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const tileGrid       = document.getElementById('tile-grid');
   const tiles          = Array.from(document.querySelectorAll('.tile'));
   const portraitVideoEl = document.getElementById('portrait-video');
-
-  // One portrait-video slice per tile — 300% sized and offset so each tile shows its 1/9
-  const tilePortraitVids = tiles.map(tile => {
-    const col = parseInt(tile.dataset.col);
-    const row = parseInt(tile.dataset.row);
-    const vid = document.createElement('video');
-    vid.src = 'initial image 1.mp4';
-    vid.muted = true;
-    vid.playsInline = true;
-    vid.setAttribute('playsinline', '');
-    vid.preload = 'auto';
-    vid.className = 'tile-portrait-vid';
-    vid.style.left = `-${col * 100}%`;
-    vid.style.top  = `-${row * 100}%`;
-    tile.querySelector('.tile-inner').prepend(vid);
-    return vid;
-  });
 
   // Capture the current portrait video frame → set as tile backgrounds + overlay
   function capturePortraitFrame() {
@@ -1322,31 +1296,22 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
 
-    // #portrait-video (full cover) fades out fast so tiles become visible immediately
+    // Assembled overlay + portrait video fade out as tiles scatter (gone by p=0.5)
+    tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p * 2)));
     if (portraitVideoEl && !portraitVideoEl.classList.contains('done')) {
-      portraitVideoEl.style.opacity = String(Math.max(0, 1 - p * 10));
-      if (p >= 0.1) portraitVideoEl.classList.add('done');
+      portraitVideoEl.style.opacity = String(Math.max(0, 1 - p * 2));
+      if (p >= 0.5) portraitVideoEl.classList.add('done');
     }
-    // Crossfade inside each tile: portrait slice 1→0, project video 0→1 (starts at p=0.29)
-    const crossfadeP = Math.max(0, (p - 0.29) / 0.71);
-    tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - crossfadeP)));
-    tilePortraitVids.forEach(v => {
-      if (!v.classList.contains('done')) {
-        v.style.opacity = String(Math.max(0, 1 - crossfadeP));
-        if (crossfadeP >= 1) v.classList.add('done');
-      }
-    });
-    // Project videos fade in as tile portrait slices fade out
-    const videoP = String(crossfadeP);
-    video.style.opacity  = videoP;
-    video2.style.opacity = videoP;
-    video3.style.opacity = videoP;
-    video4.style.opacity = videoP;
-    video5.style.opacity = videoP;
-    video6.style.opacity = videoP;
-    video7.style.opacity = videoP;
-    video8.style.opacity = videoP;
-    video9.style.opacity = videoP;
+    // Video tiles crossfade from portrait → first frame as scatter progresses
+    video.style.opacity  = String(p);
+    video2.style.opacity = String(p);
+    video3.style.opacity = String(p);
+    video4.style.opacity = String(p);
+    video5.style.opacity = String(p);
+    video6.style.opacity = String(p);
+    video7.style.opacity = String(p);
+    video8.style.opacity = String(p);
+    video9.style.opacity = String(p);
 
     // Gap between tiles grows with scatter progress
     tileGrid.style.gap = `${Math.round(p * (isMobile ? 3 : 10))}px`;
@@ -1387,12 +1352,6 @@ document.addEventListener('DOMContentLoaded', function () {
   function scatter() {
     if (hasScattered) return;
     hasScattered = true;
-
-    // Snap all tile slices to master video's current time for frame-perfect sync
-    if (portraitVideoEl) {
-      const t = portraitVideoEl.currentTime;
-      tilePortraitVids.forEach(v => { if (Math.abs(v.currentTime - t) > 0.05) v.currentTime = t; });
-    }
 
     // Set up all interactions immediately — no need to wait for scatter to complete.
     // RAF drives tile.style.translate; hover drives tile.style.scale — they compose independently.
@@ -1702,12 +1661,6 @@ document.addEventListener('DOMContentLoaded', function () {
       portraitVideoEl.pause();
       portraitVideoEl.currentTime = 0;
     }
-    tilePortraitVids.forEach(v => {
-      v.classList.remove('done');
-      v.style.opacity = '1';
-      v.pause();
-      v.currentTime = 0;
-    });
     portraitVideoTriggered = false;
     wrap.style.transform = '';
     wrap.style.width = `${wrap.offsetHeight * RATIO_START}px`;
@@ -1736,11 +1689,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (portraitVideoTriggered || hasScattered) return;
     portraitVideoTriggered = true;
     clearTimeout(autoScatterTimer);
-    // Start master + all tile slices simultaneously from time 0
-    portraitVideoEl.currentTime = 0;
-    tilePortraitVids.forEach(v => { v.currentTime = 0; });
     portraitVideoEl.play().catch(() => { capturePortraitFrame(); scatter(); });
-    tilePortraitVids.forEach(v => v.play().catch(() => {}));
   }
 
   function scatterWithCapture() { capturePortraitFrame(); scatter(); }
@@ -1759,7 +1708,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Scatter 0.4s before video ends; hold last frame (no loop)
   portraitVideoEl.addEventListener('timeupdate', () => {
     if (!portraitVideoEl.duration || hasScattered) return;
-    if (portraitVideoEl.duration - portraitVideoEl.currentTime <= 1.0) {
+    if (portraitVideoEl.duration - portraitVideoEl.currentTime <= 0.9) {
       capturePortraitFrame();
       scatter();
     }
@@ -1966,7 +1915,7 @@ function TweakButton({ label, onClick, secondary=false }) {
     }
 
     window.__scatterEnergy = 0.06 + energy * 0.18;
-    window.__scatterEase   = 0.020 + energy * 0.085;
+    window.__scatterEase   = 0.045 + energy * 0.085;
   }
 
   applyTweaks(TWEAK_DEFAULTS);
