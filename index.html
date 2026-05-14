@@ -1298,22 +1298,24 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
 
-    // Portrait video fades out as project tile videos fade in — same pace, video plays through
-    tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p)));
+    // Portrait video cover fades out fast so captured tile slices take over
     if (portraitVideoEl && !portraitVideoEl.classList.contains('done')) {
-      portraitVideoEl.style.opacity = String(Math.max(0, 1 - p));
-      if (p >= 1) portraitVideoEl.classList.add('done');
+      portraitVideoEl.style.opacity = String(Math.max(0, 1 - p * 10));
+      if (p >= 0.1) portraitVideoEl.classList.add('done');
     }
-    // Video tiles crossfade from portrait → project video as scatter progresses
-    video.style.opacity  = String(p);
-    video2.style.opacity = String(p);
-    video3.style.opacity = String(p);
-    video4.style.opacity = String(p);
-    video5.style.opacity = String(p);
-    video6.style.opacity = String(p);
-    video7.style.opacity = String(p);
-    video8.style.opacity = String(p);
-    video9.style.opacity = String(p);
+    // Seamless frame overlay fades → individual tile slices become visible as gaps open (p=0→0.5)
+    tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p * 2)));
+    // Project tile videos crossfade over the scattered slices (p=0.5→1)
+    const videoP = String(Math.max(0, (p - 0.5) * 2));
+    video.style.opacity  = videoP;
+    video2.style.opacity = videoP;
+    video3.style.opacity = videoP;
+    video4.style.opacity = videoP;
+    video5.style.opacity = videoP;
+    video6.style.opacity = videoP;
+    video7.style.opacity = videoP;
+    video8.style.opacity = videoP;
+    video9.style.opacity = videoP;
 
     // Gap between tiles grows with scatter progress
     tileGrid.style.gap = `${Math.round(p * (isMobile ? 3 : 10))}px`;
@@ -1691,24 +1693,25 @@ document.addEventListener('DOMContentLoaded', function () {
     if (portraitVideoTriggered || hasScattered) return;
     portraitVideoTriggered = true;
     clearTimeout(autoScatterTimer);
-    portraitVideoEl.play().catch(() => scatter());
+    portraitVideoEl.play().catch(() => { capturePortraitFrame(); scatter(); });
   }
 
   function onMouseEnter() { playPortraitVideo(); }
-  function onWheel(e) { if (e.deltaY > 10) scatter(); }
+  function onWheel(e) { if (e.deltaY > 10) { capturePortraitFrame(); scatter(); } }
   let touchY0 = null;
   let touchX0 = null;
   function onTouchMove(e) {
     if (touchY0 === null) return;
     const dy = Math.abs(e.touches[0].clientY - touchY0);
     const dx = Math.abs(e.touches[0].clientX - touchX0);
-    if (dy > 30 || dx > 30) scatter();
+    if (dy > 30 || dx > 30) { capturePortraitFrame(); scatter(); }
   }
 
-  // Trigger scatter 1.0s before video ends; video keeps playing through the transition
+  // Capture last frame then scatter 1.0s before video ends
   portraitVideoEl.addEventListener('timeupdate', () => {
     if (!portraitVideoEl.duration || hasScattered) return;
     if (portraitVideoEl.duration - portraitVideoEl.currentTime <= 1.0) {
+      capturePortraitFrame();
       scatter();
     }
   });
