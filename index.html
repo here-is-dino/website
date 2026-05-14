@@ -515,11 +515,18 @@ document.addEventListener('DOMContentLoaded', function () {
   function capturePortraitFrame() {
     if (!portraitVideoEl || portraitVideoEl.readyState < 2) return;
     try {
+      const cw = portraitVideoEl.offsetWidth  || 400;
+      const ch = portraitVideoEl.offsetHeight || 300;
+      const vw = portraitVideoEl.videoWidth   || cw;
+      const vh = portraitVideoEl.videoHeight  || ch;
+      // Replicate object-fit:cover so the canvas matches exactly what the video shows
+      const scale = Math.max(cw / vw, ch / vh);
+      const sw = vw * scale, sh = vh * scale;
+      const ox = (cw - sw) / 2, oy = (ch - sh) / 2;
       const canvas = document.createElement('canvas');
-      // Use display size (not native resolution) — much cheaper on mobile
-      canvas.width  = portraitVideoEl.offsetWidth  || 400;
-      canvas.height = portraitVideoEl.offsetHeight || 300;
-      canvas.getContext('2d').drawImage(portraitVideoEl, 0, 0, canvas.width, canvas.height);
+      canvas.width  = cw;
+      canvas.height = ch;
+      canvas.getContext('2d').drawImage(portraitVideoEl, ox, oy, sw, sh);
       const url = canvas.toDataURL('image/jpeg', 0.85);
       tiles.forEach(t => t.style.backgroundImage = `url('${url}')`);
       tileGrid.style.setProperty('--portrait-src', `url('${url}')`);
