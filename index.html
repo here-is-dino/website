@@ -1298,11 +1298,17 @@ document.addEventListener('DOMContentLoaded', function () {
     // Mobile: stage is centred at ~17.6 vw from left; ratioEnd 2.3 gives W≈95 vw
     // so cols 1+2 are roughly centred and col 3 is ~50% off-screen right.
     const ratioEnd = isMobile ? 2.3 : RATIO_END;
-    // Desktop: wrap fixed at RATIO_END so video frame matches the grid.
-    // Mobile/tablet: keep the RATIO_START→END growth animation.
-    const ratio = (!isMobile && !isTablet) ? RATIO_END : RATIO_START + (ratioEnd - RATIO_START) * p;
-    const W = H * ratio;
-    wrap.style.width = `${W}px`;
+    // Desktop: keep CSS width unchanged (avoids rounding mismatch with canvas capture).
+    // Use actual rendered width for tile translations so they match exactly.
+    // Mobile/tablet: animate width RATIO_START→END.
+    let W;
+    if (!isMobile && !isTablet) {
+      W = wrap.offsetWidth; // exact CSS-rendered width, no rounding jump
+    } else {
+      const ratio = RATIO_START + (ratioEnd - RATIO_START) * p;
+      W = H * ratio;
+      wrap.style.width = `${W}px`;
+    }
 
     const dist = window.__scatterEnergy || 0.15;
 
@@ -1676,7 +1682,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     portraitVideoTriggered = false;
     wrap.style.transform = isTablet ? 'scale(0.7)' : '';
-    wrap.style.width = `${wrap.offsetHeight * ((!isMobile && !isTablet) ? RATIO_END : RATIO_START)}px`;
+    if (isMobile || isTablet) wrap.style.width = `${wrap.offsetHeight * RATIO_START}px`;
     window.__scatterProgress = 0;
     tileGrid.style.gap = '0px';
     nameEl.style.opacity = '0';
