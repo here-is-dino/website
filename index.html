@@ -279,6 +279,7 @@
     /* Two-column layout below fullscreen video — shifted left */
     .project-below {
       display: flex;
+      align-items: flex-start;
       gap: 42px;
       padding: 34px 0 48px;
       width: 72%;
@@ -286,7 +287,7 @@
       margin-right: 21%;
       box-sizing: border-box;
     }
-    .project-below-left, .project-below-right { flex: 1; }
+    .project-below-left, .project-below-right { flex: 1; padding-top: 0; margin-top: 0; }
     .project-below-left {
       text-align: right;
       font-size: clamp(10px, 0.75vw, 12px);
