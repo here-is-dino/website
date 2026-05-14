@@ -1305,8 +1305,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     // Seamless frame overlay fades → individual tile slices become visible as gaps open (p=0→0.5)
     tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p * 2)));
-    // Project tile videos crossfade over the scattered slices (p=0.7→0.95, 50% faster)
-    const videoP = String(Math.max(0, Math.min(1, (p - 0.7) / 0.25)));
+    // Project tile videos crossfade over the scattered slices (~0.3s, p=0.70→0.89)
+    const videoP = String(Math.max(0, Math.min(1, (p - 0.7) / 0.19)));
     video.style.opacity  = videoP;
     video2.style.opacity = videoP;
     video3.style.opacity = videoP;
