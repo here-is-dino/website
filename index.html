@@ -1723,6 +1723,14 @@ document.addEventListener('DOMContentLoaded', function () {
       framePrecaptured = true;
       capturePortraitFrame(); // warm-up
     }
+    // Start crossfade 0.3s before scatter so project videos are already mid-fade when tiles break apart
+    if (!crossfadeTriggered && remaining <= 1.4) {
+      crossfadeTriggered = true;
+      [video,video2,video3,video4,video5,video6,video7,video8,video9].forEach(v => {
+        v.style.transition = 'opacity 0.3s ease';
+        v.style.opacity    = '1';
+      });
+    }
     if (remaining <= 1.1) {
       capturePortraitFrame(); // sync canvas to the frame actually visible right now
       scatter();
