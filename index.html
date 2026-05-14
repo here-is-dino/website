@@ -81,6 +81,17 @@
       height: 47.61vh;
     }
 
+    /* Portrait video — covers tile grid during assembled state, fades out during scatter */
+    #portrait-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 3;
+      pointer-events: none;
+    }
+
     /* 3×3 tile grid */
     #tile-grid {
       position: absolute;
@@ -461,6 +472,7 @@
       <div class="tile" data-col="1" data-row="2"><div class="tile-inner"><video src="Submarine.mp4" poster="Submarine.jpg" loop muted playsinline preload="auto"></video></div></div>
       <div class="tile" data-col="2" data-row="2"><div class="tile-inner"><video src="Alien.mp4" poster="Alien.jpg" loop muted playsinline preload="auto"></video></div></div>
     </div>
+    <video id="portrait-video" src="initial image 1.mp4" playsinline muted preload="auto"></video>
   </div>
 </div>
 
@@ -490,22 +502,31 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  const IMG_SRC = 'Portrait.jpg';
-
-  // Declare core elements first — everything below depends on these
   // Match the CSS breakpoints exactly — width-only for mobile, width+pointer for tablet
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
   const isTablet = window.matchMedia('(min-width: 769px) and (max-width: 1200px) and (pointer: coarse)').matches;
 
-  const wrap     = document.getElementById('portrait-wrap');
-  const tileGrid = document.getElementById('tile-grid');
-  const tiles    = Array.from(document.querySelectorAll('.tile'));
+  const wrap           = document.getElementById('portrait-wrap');
+  const tileGrid       = document.getElementById('tile-grid');
+  const tiles          = Array.from(document.querySelectorAll('.tile'));
+  const portraitVideoEl = document.getElementById('portrait-video');
 
-  // Portrait background on each tile + assembled single-image overlay (no seams)
-  tiles.forEach(tile => {
-    tile.style.backgroundImage = `url('${IMG_SRC}')`;
-  });
-  tileGrid.style.setProperty('--portrait-src', `url('${IMG_SRC}')`);
+  // Capture the current portrait video frame → set as tile backgrounds + overlay
+  function capturePortraitFrame() {
+    if (!portraitVideoEl || portraitVideoEl.readyState < 2) return;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width  = portraitVideoEl.videoWidth  || portraitVideoEl.offsetWidth;
+      canvas.height = portraitVideoEl.videoHeight || portraitVideoEl.offsetHeight;
+      canvas.getContext('2d').drawImage(portraitVideoEl, 0, 0);
+      const url = canvas.toDataURL('image/jpeg', 0.92);
+      tiles.forEach(t => t.style.backgroundImage = `url('${url}')`);
+      tileGrid.style.setProperty('--portrait-src', `url('${url}')`);
+    } catch (e) {}
+  }
+
+  // Capture first frame as soon as it's available (fallback before any interaction)
+  portraitVideoEl.addEventListener('loadeddata', () => capturePortraitFrame(), { once: true });
 
   // Video tile references
   const videoTile  = tiles[0]; // col=0, row=0 — Vi-1.mp4
@@ -1275,8 +1296,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
 
-    // Assembled overlay fades out as tiles scatter (gone by p=0.5)
+    // Assembled overlay + portrait video fade out as tiles scatter (gone by p=0.5)
     tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p * 2)));
+    if (portraitVideoEl && !portraitVideoEl.classList.contains('done')) {
+      portraitVideoEl.style.opacity = String(Math.max(0, 1 - p * 2));
+      if (p >= 0.5) portraitVideoEl.classList.add('done');
+    }
     // Video tiles crossfade from portrait → first frame as scatter progresses
     video.style.opacity  = String(p);
     video2.style.opacity = String(p);
@@ -1630,6 +1655,13 @@ document.addEventListener('DOMContentLoaded', function () {
     video9.style.opacity = '0';
     tileGrid.style.filter = '';
     tileGrid.style.setProperty('--assembled-opacity', '1');
+    if (portraitVideoEl) {
+      portraitVideoEl.classList.remove('done');
+      portraitVideoEl.style.opacity = '1';
+      portraitVideoEl.pause();
+      portraitVideoEl.currentTime = 0;
+    }
+    portraitVideoTriggered = false;
     wrap.style.transform = '';
     wrap.style.width = `${wrap.offsetHeight * RATIO_START}px`;
     window.__scatterProgress = 0;
@@ -1651,44 +1683,62 @@ document.addEventListener('DOMContentLoaded', function () {
     window.addEventListener('touchmove', onTouchMove, { passive: true });
   };
 
-  function onMouseEnter() { scatter(); }
-  function onWheel(e) { if (e.deltaY > 10) scatter(); }
+  let portraitVideoTriggered = false;
+
+  function playPortraitVideo() {
+    if (portraitVideoTriggered || hasScattered) return;
+    portraitVideoTriggered = true;
+    clearTimeout(autoScatterTimer);
+    portraitVideoEl.play().catch(() => { capturePortraitFrame(); scatter(); });
+  }
+
+  function scatterWithCapture() { capturePortraitFrame(); scatter(); }
+
+  function onMouseEnter() { playPortraitVideo(); }
+  function onWheel(e) { if (e.deltaY > 10) scatterWithCapture(); }
   let touchY0 = null;
   let touchX0 = null;
   function onTouchMove(e) {
     if (touchY0 === null) return;
     const dy = Math.abs(e.touches[0].clientY - touchY0);
     const dx = Math.abs(e.touches[0].clientX - touchX0);
-    if (dy > 30 || dx > 30) scatter();
+    if (dy > 30 || dx > 30) scatterWithCapture();
   }
+
+  // Scatter 0.4s before video ends; hold last frame (no loop)
+  portraitVideoEl.addEventListener('timeupdate', () => {
+    if (!portraitVideoEl.duration || hasScattered) return;
+    if (portraitVideoEl.duration - portraitVideoEl.currentTime <= 0.4) {
+      capturePortraitFrame();
+      scatter();
+    }
+  });
 
   window.addEventListener('touchstart', e => {
     touchY0 = e.touches[0].clientY;
     touchX0 = e.touches[0].clientX;
   }, { passive: true });
 
-  // Delay scatter triggers by 0.6 s to buffer video first frames on slow connections.
-  // If the user hasn't hovered within 3 s, scatter fires automatically.
-  const autoScatterTimer = setTimeout(() => scatter(), 4000);
+  // Auto-scatter if no interaction within 4s
+  var autoScatterTimer = setTimeout(() => scatterWithCapture(), 4000);
 
   setTimeout(() => {
     if (isMobile || isTablet) {
-      // Touch devices: tap on the portrait OR swipe anywhere triggers scatter
+      // Touch devices: tap portrait → play video; swipe anywhere → immediate scatter
       wrap.addEventListener('touchend', (e) => {
         e.preventDefault();
-        clearTimeout(autoScatterTimer);
-        scatter();
+        playPortraitVideo();
       }, { once: true, passive: false });
       window.addEventListener('touchmove', onTouchMove, { passive: true });
     } else {
       wrap.addEventListener('mouseenter', onMouseEnter);
       window.addEventListener('wheel', onWheel, { passive: true });
       window.addEventListener('touchmove', onTouchMove, { passive: true });
-      // If the cursor was already over the portrait when the delay expired, scatter now
-      if (wrap.matches(':hover')) { clearTimeout(autoScatterTimer); scatter(); }
+      // If cursor already over portrait when delay expires, play video now
+      if (wrap.matches(':hover')) playPortraitVideo();
     }
 
-    // Cancel auto-scatter on any interaction
+    // Cancel auto-scatter on any deliberate interaction
     const cancelAuto = () => clearTimeout(autoScatterTimer);
     window.addEventListener('touchend',  cancelAuto, { once: true, passive: true });
     window.addEventListener('wheel',     cancelAuto, { once: true, passive: true });
