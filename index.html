@@ -1605,8 +1605,8 @@ document.addEventListener('DOMContentLoaded', function () {
         applyScatter(1);
         return;
       }
-      // Smooth-step: slow start → build speed → slow end (s-curve on the raw progress)
-      const sp = progress * progress * (3 - 2 * progress);
+      // Power-2.4 smooth-step: ~40% slower start, builds speed, eases at end
+      const sp = Math.min(1, Math.pow(progress, 2.4) * (3.4 - 2.4 * progress));
       applyScatter(sp);
       if (progress > 0.05) tiles.forEach(t => t.classList.add('scattered'));
       rafId = requestAnimationFrame(step);
@@ -1919,7 +1919,7 @@ function TweakButton({ label, onClick, secondary=false }) {
     }
 
     window.__scatterEnergy = 0.06 + energy * 0.18;
-    window.__scatterEase   = 0.036 + energy * 0.085;
+    window.__scatterEase   = 0.024 + energy * 0.085;
   }
 
   applyTweaks(TWEAK_DEFAULTS);
