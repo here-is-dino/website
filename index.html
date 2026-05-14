@@ -751,9 +751,10 @@ document.addEventListener('DOMContentLoaded', function () {
     },
   };
 
-  let hasScattered      = false;
-  let isProjectView     = false;
-  let scatterComplete   = false;
+  let hasScattered        = false;
+  let isProjectView       = false;
+  let scatterComplete     = false;
+  let crossfadeTriggered  = false;
   let activeProjectTile = null;
   let lastProjectTile   = null; // retained after close for forward navigation
 
@@ -1305,17 +1306,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     // Seamless frame overlay fades → individual tile slices become visible as gaps open (p=0→0.5)
     tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p * 2)));
-    // Project tile videos crossfade over the scattered slices (~0.8s, p=0.70→0.98)
-    const videoP = String(Math.max(0, Math.min(1, (p - 0.7) / 0.28)));
-    video.style.opacity  = videoP;
-    video2.style.opacity = videoP;
-    video3.style.opacity = videoP;
-    video4.style.opacity = videoP;
-    video5.style.opacity = videoP;
-    video6.style.opacity = videoP;
-    video7.style.opacity = videoP;
-    video8.style.opacity = videoP;
-    video9.style.opacity = videoP;
+    // Trigger CSS crossfade once at p=0.7 — duration set by transition, independent of easing
+    if (p >= 0.7 && !crossfadeTriggered) {
+      crossfadeTriggered = true;
+      [video,video2,video3,video4,video5,video6,video7,video8,video9].forEach(v => {
+        v.style.transition = 'opacity 2s ease';
+        v.style.opacity    = '1';
+      });
+    }
 
     // Gap between tiles grows with scatter progress
     tileGrid.style.gap = `${Math.round(p * (isMobile ? 3 : 10))}px`;
@@ -1632,33 +1630,14 @@ document.addEventListener('DOMContentLoaded', function () {
       t.style.scale      = '';
       t.style.filter     = '';
     });
+    crossfadeTriggered = false;
     video.pause();
     video.currentTime   = 0;
+    video.style.transition = '';
     video.style.opacity = '0';
-    video2.pause();
-    video2.currentTime   = 0;
-    video2.style.opacity = '0';
-    video3.pause();
-    video3.currentTime   = 0;
-    video3.style.opacity = '0';
-    video4.pause();
-    video4.currentTime   = 0;
-    video4.style.opacity = '0';
-    video5.pause();
-    video5.currentTime   = 0;
-    video5.style.opacity = '0';
-    video6.pause();
-    video6.currentTime   = 0;
-    video6.style.opacity = '0';
-    video7.pause();
-    video7.currentTime   = 0;
-    video7.style.opacity = '0';
-    video8.pause();
-    video8.currentTime   = 0;
-    video8.style.opacity = '0';
-    video9.pause();
-    video9.currentTime   = 0;
-    video9.style.opacity = '0';
+    [video2,video3,video4,video5,video6,video7,video8,video9].forEach(v => {
+      v.pause(); v.currentTime = 0; v.style.transition = ''; v.style.opacity = '0';
+    });
     tileGrid.style.filter = '';
     tileGrid.style.setProperty('--assembled-opacity', '1');
     if (portraitVideoEl) {
