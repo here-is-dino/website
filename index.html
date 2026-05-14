@@ -528,6 +528,12 @@ document.addEventListener('DOMContentLoaded', function () {
   // Capture first frame as soon as it's available (fallback before any interaction)
   portraitVideoEl.addEventListener('loadeddata', () => capturePortraitFrame(), { once: true });
 
+  // iOS Safari won't paint the first frame without an explicit load + seek
+  portraitVideoEl.load();
+  portraitVideoEl.addEventListener('loadedmetadata', () => {
+    portraitVideoEl.currentTime = 0.001;
+  }, { once: true });
+
   // Video tile references
   const videoTile  = tiles[0]; // col=0, row=0 — Vi-1.mp4
   const videoInner = videoTile.querySelector('.tile-inner');
