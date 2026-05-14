@@ -401,10 +401,12 @@
     /* ── Tablet (touch, 769–1200 px) ────────────────────────── */
     @media (pointer: coarse) and (min-width: 769px) and (max-width: 1200px) {
       #portrait-wrap {
-        width:  calc(35vh * 1.7778) !important;
+        width:  calc(35vh * 1.501) !important;
         height: 35vh !important;
+        transform: scale(0.7);
+        transform-origin: center center;
       }
-      #stage { width: calc(35vh * 1.7778); margin: 0 auto; }
+      #stage { width: calc(35vh * 1.501); margin: 0 auto; }
       .row-label { display: none; }
     }
 
@@ -513,8 +515,11 @@ document.addEventListener('DOMContentLoaded', function () {
   function capturePortraitFrame() {
     if (!portraitVideoEl || portraitVideoEl.readyState < 2) return;
     try {
-      const cw = portraitVideoEl.offsetWidth  || 400;
-      const ch = portraitVideoEl.offsetHeight || 300;
+      // On tablet the wrap has transform:scale(0.7), so the visual dimensions are 70% of layout.
+      // The canvas must match the visual size so object-fit:cover crops identically.
+      const visualScale = isTablet ? 0.7 : 1;
+      const cw = (portraitVideoEl.offsetWidth  || 400) * visualScale;
+      const ch = (portraitVideoEl.offsetHeight || 300) * visualScale;
       const vw = portraitVideoEl.videoWidth   || cw;
       const vh = portraitVideoEl.videoHeight  || ch;
       // Replicate object-fit:cover so the canvas matches exactly what the video shows
@@ -1285,11 +1290,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // Mobile: stage is centred at ~17.6 vw from left; ratioEnd 2.3 gives W≈95 vw
     // so cols 1+2 are roughly centred and col 3 is ~50% off-screen right.
     const ratioEnd = isMobile ? 2.3 : RATIO_END;
-    // Desktop + tablet: wrap fixed at RATIO_END so video frame always matches the grid.
-    // Mobile: keep the RATIO_START→END growth animation.
-    const ratio = isMobile ? RATIO_START + (ratioEnd - RATIO_START) * p : RATIO_END;
+    // Desktop: wrap fixed at RATIO_END so video frame matches the grid.
+    // Mobile/tablet: keep the RATIO_START→END growth animation.
+    const ratio = (!isMobile && !isTablet) ? RATIO_END : RATIO_START + (ratioEnd - RATIO_START) * p;
     const W = H * ratio;
     wrap.style.width = `${W}px`;
+
+    // Tablet: assembled portrait is 30% smaller; expand to full as scatter progresses
+    if (isTablet) wrap.style.transform = `scale(${0.7 + 0.3 * p})`;
     const dist = window.__scatterEnergy || 0.15;
 
     // Tiles scatter outward; grid drifts down slightly for vertical balance.
@@ -1657,7 +1665,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     portraitVideoTriggered = false;
     wrap.style.transform = '';
-    wrap.style.width = `${wrap.offsetHeight * (isMobile ? RATIO_START : RATIO_END)}px`;
+    wrap.style.width = `${wrap.offsetHeight * ((!isMobile && !isTablet) ? RATIO_END : RATIO_START)}px`;
     window.__scatterProgress = 0;
     tileGrid.style.gap = '0px';
     nameEl.style.opacity = '0';
