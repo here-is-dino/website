@@ -1331,8 +1331,9 @@ document.addEventListener('DOMContentLoaded', function () {
       portraitVideoEl.style.opacity = String(Math.max(0, 1 - p * 10));
       if (p >= 0.1) portraitVideoEl.classList.add('done');
     }
-    // Seamless frame overlay fades → individual tile slices become visible as gaps open (p=0→0.5)
-    tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p * 2)));
+    // Desktop/tablet: skip the seamless overlay so the per-tile crossfade is visible immediately.
+    // Mobile: fade the overlay out gradually so slices appear as gaps open.
+    tileGrid.style.setProperty('--assembled-opacity', String(isMobile ? Math.max(0, 1 - p * 2) : 0));
     // Trigger CSS crossfade once at p=0.7 — duration set by transition, independent of easing
     if (!crossfadeTriggered) {
       crossfadeTriggered = true;
