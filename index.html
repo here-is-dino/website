@@ -77,7 +77,7 @@
     /* Portrait */
     #portrait-wrap {
       position: relative;
-      width: calc(47.61vh * 1.501);
+      width: calc(47.61vh * 1.7778);
       height: 47.61vh;
     }
 
@@ -1272,7 +1272,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Mobile: stage is centred at ~17.6 vw from left; ratioEnd 2.3 gives W≈95 vw
     // so cols 1+2 are roughly centred and col 3 is ~50% off-screen right.
     const ratioEnd = isMobile ? 2.3 : RATIO_END;
-    const ratio = RATIO_START + (ratioEnd - RATIO_START) * p;
+    // Desktop: wrap is fixed at RATIO_END so the video frame always matches the grid.
+    // Mobile/tablet: keep the RATIO_START→END growth animation.
+    const ratio = (isMobile || isTablet) ? RATIO_START + (ratioEnd - RATIO_START) * p : RATIO_END;
     const W = H * ratio;
     wrap.style.width = `${W}px`;
 
@@ -1663,7 +1665,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     portraitVideoTriggered = false;
     wrap.style.transform = '';
-    wrap.style.width = `${wrap.offsetHeight * RATIO_START}px`;
+    wrap.style.width = `${wrap.offsetHeight * ((!isMobile && !isTablet) ? RATIO_END : RATIO_START)}px`;
     window.__scatterProgress = 0;
     tileGrid.style.gap = '0px';
     nameEl.style.opacity = '0';
