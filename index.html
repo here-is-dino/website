@@ -1710,7 +1710,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (touchY0 === null) return;
     const dy = Math.abs(e.touches[0].clientY - touchY0);
     const dx = Math.abs(e.touches[0].clientX - touchX0);
-    if (dy > 30 || dx > 30) scatter();
+    if (dy > 30 || dx > 30) playPortraitVideo();
   }
 
   // Pre-capture 2s before end (warms up GPU/canvas), then re-capture at scatter time
