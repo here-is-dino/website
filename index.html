@@ -1704,7 +1704,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (portraitVideoTriggered || hasScattered) return;
     portraitVideoTriggered = true;
     clearTimeout(autoScatterTimer);
-    portraitVideoEl.currentTime = 0;
     portraitVideoEl.play().catch(() => {
       // play() failed — reset so user can try again (don't scatter immediately)
       portraitVideoTriggered = false;
@@ -1722,9 +1721,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (dy > 30 || dx > 30) playPortraitVideo();
   }
 
-  // Fallback: scatter when video naturally ends (covers short clips or slow-metadata cases)
+  // Fallback: scatter when video naturally ends — only if the video was actually playing
   portraitVideoEl.addEventListener('ended', () => {
-    if (!hasScattered) { capturePortraitFrame(); scatter(); }
+    if (!hasScattered && portraitVideoTriggered && portraitVideoEl.currentTime > 0.5) {
+      capturePortraitFrame();
+      scatter();
+    }
   });
 
   // Pre-capture 2s before end (warms up GPU/canvas), then re-capture at scatter time
