@@ -1654,7 +1654,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
       // Power-2.4 smooth-step: ~40% slower start, builds speed, eases at end
-      const sp = Math.min(1, Math.pow(progress, 2.4) * (3.4 - 2.4 * progress));
+      // Power-3 smooth-step: slower start, faster mid, significantly slower tail
+      const sp = Math.min(1, Math.pow(progress, 3) * (4 - 3 * progress));
       applyScatter(sp);
       if (progress > 0.05) tiles.forEach(t => t.classList.add('scattered'));
       rafId = requestAnimationFrame(step);
@@ -1967,7 +1968,7 @@ function TweakButton({ label, onClick, secondary=false }) {
     }
 
     window.__scatterEnergy = 0.06 + energy * 0.18;
-    window.__scatterEase   = 0.013 + energy * 0.085;
+    window.__scatterEase   = 0.009 + energy * 0.085;
   }
 
   applyTweaks(TWEAK_DEFAULTS);
