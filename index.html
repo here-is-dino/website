@@ -1756,7 +1756,7 @@ document.addEventListener('DOMContentLoaded', function () {
       framePrecaptured = true;
       capturePortraitFrame(); // warm-up
     }
-    if (remaining <= 1.1 && portraitVideoEl.currentTime > 0.5) {
+    if (remaining <= 1.3 && portraitVideoEl.currentTime > 0.5) {
       capturePortraitFrame(); // sync canvas to the frame actually visible right now
       scatter();
     }
