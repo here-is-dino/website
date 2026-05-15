@@ -1708,7 +1708,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (portraitVideoTriggered || hasScattered) return;
     portraitVideoTriggered = true;
     clearTimeout(autoScatterTimer);
-    portraitVideoEl.play().catch(() => scatter());
+    portraitVideoEl.currentTime = 0;
+    portraitVideoEl.play().catch(() => {
+      // play() failed — reset so user can try again (don't scatter immediately)
+      portraitVideoTriggered = false;
+    });
   }
 
   function onMouseEnter() { playPortraitVideo(); }
@@ -1722,6 +1726,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (dy > 30 || dx > 30) playPortraitVideo();
   }
 
+  // Fallback: scatter when video naturally ends (covers short clips or slow-metadata cases)
+  portraitVideoEl.addEventListener('ended', () => {
+    if (!hasScattered) { capturePortraitFrame(); scatter(); }
+  });
+
   // Pre-capture 2s before end (warms up GPU/canvas), then re-capture at scatter time
   // so the canvas always matches the exact frame the video is showing when it fades out.
   let framePrecaptured = false;
@@ -1732,7 +1741,7 @@ document.addEventListener('DOMContentLoaded', function () {
       framePrecaptured = true;
       capturePortraitFrame(); // warm-up
     }
-    if (remaining <= 1.1) {
+    if (remaining <= 1.1 && portraitVideoEl.currentTime > 0.5) {
       capturePortraitFrame(); // sync canvas to the frame actually visible right now
       scatter();
     }
