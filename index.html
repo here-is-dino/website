@@ -92,6 +92,17 @@
       z-index: 3;
       pointer-events: none;
     }
+    /* First-frame poster — shows instantly while video loads in background */
+    #portrait-poster {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 4;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
 
     /* 3×3 tile grid */
     #tile-grid {
@@ -474,7 +485,8 @@
       <div class="tile" data-col="1" data-row="2"><div class="tile-inner"><video src="Submarine.mp4" poster="Submarine.jpg" loop muted playsinline preload="auto"></video></div></div>
       <div class="tile" data-col="2" data-row="2"><div class="tile-inner"><video src="Alien.mp4" poster="Alien.jpg" loop muted playsinline preload="auto"></video></div></div>
     </div>
-    <video id="portrait-video" src="initial image 1.mp4" playsinline muted preload="auto"></video>
+    <video id="portrait-video" src="initial image 1.mp4" poster="initial image 1.jpg" playsinline muted preload="auto"></video>
+    <img id="portrait-poster" src="initial image 1.jpg" alt="" />
   </div>
 </div>
 
@@ -545,7 +557,12 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Capture first frame as soon as it's available (fallback before any interaction)
-  portraitVideoEl.addEventListener('loadeddata', () => capturePortraitFrame(), { once: true });
+  const posterEl = document.getElementById('portrait-poster');
+  portraitVideoEl.addEventListener('loadeddata', () => {
+    capturePortraitFrame();
+    // Video first frame ready — fade out the static poster
+    if (posterEl) posterEl.style.opacity = '0';
+  }, { once: true });
 
   // iOS Safari won't paint the first frame without an explicit load + seek
   portraitVideoEl.load();
