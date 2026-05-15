@@ -1601,6 +1601,7 @@ document.addEventListener('DOMContentLoaded', function () {
     wrap.removeEventListener('mouseenter', onMouseEnter);
     window.removeEventListener('wheel', onWheel);
     window.removeEventListener('touchmove', onTouchMove);
+    window.removeEventListener('touchend', onPortraitTouch);
 
     cancelAnimationFrame(rafId);
     function step() {
@@ -1749,11 +1750,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var autoScatterTimer = null; // no auto-scatter
 
+  function onPortraitTouch() {
+    if (!portraitVideoTriggered && !hasScattered) playPortraitVideo();
+  }
+
   if (isMobile || isTablet) {
-    // Any tap or swipe anywhere on screen starts the video (touchend = trusted iOS gesture)
-    window.addEventListener('touchend', () => {
-      playPortraitVideo();
-    }, { once: true, passive: true });
+    // Any tap or swipe anywhere on screen starts the video.
+    // Persistent (not once) so retries work if play() fails and resets the flag.
+    window.addEventListener('touchend', onPortraitTouch, { passive: true });
   } else {
     wrap.addEventListener('mouseenter', onMouseEnter);
     window.addEventListener('wheel', onWheel, { passive: true });
