@@ -1949,7 +1949,11 @@ function TweakButton({ label, onClick, secondary=false }) {
     if (wrapEl) {
       wrapEl.style.height = scale;
       const heightPx = parseFloat(scale) / 100 * window.innerHeight;
-      const ratio = 1.501 + (1.7778 - 1.501) * (window.__scatterProgress || 0);
+      // Desktop: always RATIO_END so tiles are 16:9 and canvas captures match scatter size.
+      // Mobile/tablet: interpolate with scatter progress.
+      const ratio = (!isMobile && !isTablet)
+        ? 1.7778
+        : 1.501 + (1.7778 - 1.501) * (window.__scatterProgress || 0);
       wrapEl.style.width = `${heightPx * ratio}px`;
     }
 
