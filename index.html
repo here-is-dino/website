@@ -486,7 +486,7 @@
       <div class="tile" data-col="2" data-row="2"><div class="tile-inner"><video src="Alien.mp4" poster="Alien.jpg" loop muted playsinline preload="auto"></video></div></div>
     </div>
     <video id="portrait-video" src="initial image 1.mp4" poster="initial image 1.jpg" playsinline muted preload="auto"></video>
-    <img id="portrait-poster" src="initial image 1.jpg" alt="" />
+    <img id="portrait-poster" src="initial image 1.jpg" alt="" style="opacity:0" onload="this.style.opacity='1'" onerror="this.style.display='none'" />
   </div>
 </div>
 
