@@ -1750,17 +1750,9 @@ document.addEventListener('DOMContentLoaded', function () {
   var autoScatterTimer = null; // no auto-scatter
 
   if (isMobile || isTablet) {
-    // Tap on portrait: play video (touchend is a trusted iOS gesture, touchmove is not)
-    wrap.addEventListener('touchend', (e) => {
-      e.preventDefault();
+    // Any tap or swipe anywhere on screen starts the video (touchend = trusted iOS gesture)
+    window.addEventListener('touchend', () => {
       playPortraitVideo();
-    }, { once: true, passive: false });
-    // Swipe anywhere outside portrait: play video on finger lift (touchend = trusted)
-    window.addEventListener('touchend', (e) => {
-      if (portraitVideoTriggered || hasScattered) return;
-      const dy = touchY0 !== null ? Math.abs(e.changedTouches[0].clientY - touchY0) : 0;
-      const dx = touchX0 !== null ? Math.abs(e.changedTouches[0].clientX - touchX0) : 0;
-      if (dy > 30 || dx > 30) playPortraitVideo();
     }, { once: true, passive: true });
   } else {
     wrap.addEventListener('mouseenter', onMouseEnter);
