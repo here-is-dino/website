@@ -849,6 +849,91 @@ document.addEventListener('DOMContentLoaded', function () {
     overlay.style.transform  = 'translateZ(0)';
     overlay.getBoundingClientRect(); // force reflow
 
+    // ── Mobile: entire grid flies in from below, no FLIP ────────────────────
+    if (isMobile) {
+      const stageEl = document.getElementById('stage');
+      const EASE    = 'cubic-bezier(0.22, 1, 0.36, 1)';
+      const VH      = window.innerHeight;
+      const W       = wrap.offsetWidth, H = wrap.offsetHeight;
+      const dist    = window.__scatterEnergy || 0.15;
+      const distX   = dist * H / (2 * W);
+
+      // Fade overlay out — no FLIP
+      overlay.style.transition = 'opacity 0.4s ease';
+      overlay.style.opacity    = '0';
+
+      // Pre-set tiles to their final scatter positions so the grid looks
+      // correct as it rises (avoids a jump from 0.55→0.15 scatter on land)
+      tiles.forEach((t, i) => {
+        t.style.transition = 'none';
+        t.style.opacity    = '1';
+        t.style.translate  = `${DIRS[i].x * W * distX}px ${DIRS[i].y * H * dist}px`;
+      });
+
+      // Park stage below viewport, then spring it into view
+      stageEl.style.transition = 'none';
+      stageEl.style.transform  = `translateY(${VH}px)`;
+      stageEl.style.opacity    = '0';
+      stageEl.getBoundingClientRect(); // flush
+
+      requestAnimationFrame(() => {
+        stageEl.style.transition = `opacity 0.45s ease, transform 0.75s ${EASE}`;
+        stageEl.style.transform  = 'translateY(0)';
+        stageEl.style.opacity    = '1';
+      });
+
+      // Name / subtitle fade in
+      setTimeout(() => {
+        nameEl.style.transition     = 'opacity 0.4s ease';
+        subtitleEl.style.transition = 'opacity 0.4s ease';
+        nameEl.style.opacity        = '1';
+        subtitleEl.style.opacity    = '1';
+      }, 200);
+
+      // Footer flies up
+      const gridFooter = document.getElementById('site-footer');
+      if (gridFooter) {
+        gridFooter.style.transition = 'none';
+        gridFooter.style.transform  = 'translateX(-50%) translateY(60px)';
+        gridFooter.style.opacity    = '0';
+        requestAnimationFrame(() => {
+          gridFooter.style.transition    = `transform 0.7s ${EASE}, opacity 0.5s ease`;
+          gridFooter.style.transform     = 'translateX(-50%) translateY(0)';
+          gridFooter.style.opacity       = '1';
+          gridFooter.style.pointerEvents = 'auto';
+        });
+      }
+
+      // After animation: move video back, clean up, reset state
+      setTimeout(() => {
+        const vid = overlay.querySelector('video');
+        if (vid) {
+          vid.pause(); vid.loop = true; vid.currentTime = 0;
+          Object.assign(vid.style, { position:'absolute', inset:'0', width:'100%', height:'100%', objectFit:'cover', opacity:'1', objectPosition:'', transition:'' });
+          tile.querySelector('.tile-inner')?.appendChild(vid);
+        }
+        tiles.forEach(t => { t.style.transition = 'filter 0.4s ease'; t.style.filter = ''; });
+        tile.style.opacity = '1';
+        overlay.remove();
+
+        stageEl.style.transition = '';
+        stageEl.style.transform  = '';
+        stageEl.style.opacity    = '';
+        nameEl.style.transition  = '';
+        subtitleEl.style.transition = '';
+        if (gridFooter) gridFooter.style.transition = '';
+
+        isProjectView     = false;
+        activeProjectTile = null;
+        hasScattered      = false;
+        scatterComplete   = false;
+        scatter(); // progress=1 → applyScatter(1) runs instantly, re-wires listeners
+      }, 820);
+
+      return; // skip FLIP and transitionend watcher below
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     const tileRect    = tile.getBoundingClientRect();
     const overlayRect = overlay.getBoundingClientRect();
     const easeOut     = 'cubic-bezier(0.22, 1, 0.36, 1)';
