@@ -803,11 +803,13 @@ document.addEventListener('DOMContentLoaded', function () {
   let crossfadeTriggered  = false;
   let activeProjectTile = null;
   let lastProjectTile   = null; // retained after close for forward navigation
+  let lastPullEdge      = null; // 'top' | 'bottom' — edge used to scroll back to grid
 
   function closeProject() {
     const overlay = document.getElementById('project-overlay');
     const tile    = activeProjectTile;
     lastProjectTile = tile; // save before clearing, so forward nav can re-open it
+    lastPullEdge    = null; // cleared — not a scroll-gesture close
     if (!overlay || !tile) return;
 
     // Fade out and remove all project page content
@@ -1308,10 +1310,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
           scrollEl.addEventListener('touchend', () => {
             if (!pullEdge || pullDist <= 0) { pullEdge = null; pullDist = 0; return; }
-            const fired = pullDist >= PULL_MAX * 0.3;
+            const fired    = pullDist >= PULL_MAX * 0.3;
+            const savedEdge = pullEdge; // save before clearing
             pullEdge = null;
             pullDist = 0;
-            if (fired) { commitPull(); } else { snapBack(); }
+            if (fired) { lastPullEdge = savedEdge; commitPull(); } else { snapBack(); }
           }, { passive: true });
         }
 
@@ -1775,6 +1778,43 @@ document.addEventListener('DOMContentLoaded', function () {
       tiles.forEach(t => {
         t.addEventListener('click', () => openProject(t), { signal });
       });
+    }
+
+    // Mobile: swipe on the grid to re-enter the last project page.
+    // Direction is the OPPOSITE of how the user scrolled back to the grid:
+    //   closed via swipe-UP   (pullEdge='bottom') → swipe DOWN on grid to re-enter
+    //   closed via swipe-DOWN (pullEdge='top')    → swipe UP   on grid to re-enter
+    if (isMobile && lastProjectTile && lastPullEdge) {
+      const reEnterDir = lastPullEdge === 'bottom' ? 'down' : 'up';
+
+      // Hint pill at the matching edge
+      const gridInd = document.createElement('div');
+      Object.assign(gridInd.style, {
+        position: 'fixed', left: '50%', transform: 'translateX(-50%)',
+        width: '36px', height: '3px', borderRadius: '999px',
+        background: 'rgba(61,47,30,0.28)', zIndex: '60',
+        opacity: '0', pointerEvents: 'none', transition: 'opacity 0.35s ease',
+      });
+      gridInd.style[reEnterDir === 'down' ? 'bottom' : 'top'] = '24px';
+      document.body.appendChild(gridInd);
+      const showTimer = setTimeout(() => { gridInd.style.opacity = '1'; }, 300);
+      signal.addEventListener('abort', () => { clearTimeout(showTimer); gridInd.remove(); });
+
+      let swipeStartY = 0;
+      let swipeFired  = false;
+      document.addEventListener('touchstart', (e) => {
+        swipeStartY = e.touches[0].clientY;
+        swipeFired  = false;
+      }, { signal, passive: true });
+      document.addEventListener('touchmove', (e) => {
+        if (swipeFired || isProjectView) return;
+        const dy = e.touches[0].clientY - swipeStartY;
+        if ((reEnterDir === 'down' && dy > 55) || (reEnterDir === 'up' && dy < -55)) {
+          swipeFired = true;
+          gridInd.remove();
+          openProject(lastProjectTile);
+        }
+      }, { signal, passive: true });
     }
 
     // Name/subtitle hover animation disabled — re-enable later
