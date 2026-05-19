@@ -1164,44 +1164,107 @@ document.addEventListener('DOMContentLoaded', function () {
           scrollEl.style.maskImage = mask;
         }
 
-        // Mobile pull-to-close: overscroll at the bottom slides the grid in from below
+        // Mobile pull-to-close: overscroll at the bottom flies the grid thumbnails in from below
         if (isMobile) {
           scrollEl.style.overscrollBehavior = 'none';
-          let pullPanel      = null;
           let touchPullStartY = 0;
           let atScrollBottom  = false;
           let pullDist        = 0;
+          const PULL_MAX      = 260; // px drag to reach full commit
+          const TILE_Y_START  = Math.round(window.innerHeight * 0.68);
+          const EASE          = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
-          function getPullPanel() {
-            if (!pullPanel) {
-              pullPanel = document.createElement('div');
-              Object.assign(pullPanel.style, {
-                position:      'fixed',
-                top: '0', left: '0', right: '0', bottom: '0',
-                background:    '#ccc5ba',
-                zIndex:        '49',
-                transform:     'translateY(100vh)',
-                willChange:    'transform',
-                pointerEvents: 'none',
-              });
-              document.body.appendChild(pullPanel);
-            }
-            return pullPanel;
-          }
-
-          function snapPullPanelBack() {
-            if (pullPanel) {
-              pullPanel.style.transition = 'transform 0.38s cubic-bezier(0.22, 1, 0.36, 1)';
-              pullPanel.style.transform  = 'translateY(100vh)';
-              const p = pullPanel;
-              setTimeout(() => { p.remove(); if (pullPanel === p) pullPanel = null; }, 400);
-            }
-            scrollEl.style.transition = 'opacity 0.25s ease';
-            scrollEl.style.opacity    = '';
+          function snapTilesBack() {
+            tiles.forEach(t => {
+              t.style.transition = `opacity 0.32s ease, transform 0.4s ${EASE}`;
+              t.style.opacity    = '0';
+              t.style.transform  = `translateY(${TILE_Y_START}px)`;
+            });
             const ov = document.getElementById('project-overlay');
             if (ov) { ov.style.transition = 'opacity 0.25s ease'; ov.style.opacity = ''; }
-            pullDist       = 0;
+            scrollEl.style.transition = 'opacity 0.25s ease, transform 0.3s ease';
+            scrollEl.style.opacity    = '';
+            scrollEl.style.transform  = '';
             atScrollBottom = false;
+            pullDist       = 0;
+            setTimeout(() => tiles.forEach(t => { t.style.transition = ''; t.style.transform = ''; }), 420);
+          }
+
+          function commitPull() {
+            // Snap tiles to their scatter positions — transform goes to 0, translate stays as-is
+            tiles.forEach(t => {
+              t.style.transition = `opacity 0.22s ease, transform 0.38s ${EASE}`;
+              t.style.opacity    = '1';
+              t.style.transform  = 'translateY(0)';
+            });
+            // Fade out project overlay and scroll content
+            const ovEl  = document.getElementById('project-overlay');
+            const scEl  = document.getElementById('project-scroll');
+            if (ovEl)  { ovEl.style.transition = 'opacity 0.22s ease'; ovEl.style.opacity = '0'; }
+            if (scEl)  {
+              scEl.style.pointerEvents = 'none';
+              scEl.style.transition    = 'opacity 0.2s ease, transform 0.25s ease';
+              scEl.style.opacity       = '0';
+              scEl.style.transform     = 'translateY(-24px)';
+            }
+            // Restore name / subtitle / footer
+            nameEl.style.transition     = 'opacity 0.4s ease 0.1s';
+            nameEl.style.opacity        = '1';
+            subtitleEl.style.transition = 'opacity 0.4s ease 0.1s';
+            subtitleEl.style.opacity    = '1';
+            const gridFooter = document.getElementById('site-footer');
+            if (gridFooter) {
+              gridFooter.style.transition    = 'opacity 0.4s ease 0.1s';
+              gridFooter.style.opacity       = '1';
+              gridFooter.style.pointerEvents = 'auto';
+            }
+
+            setTimeout(() => {
+              // Move video back to tile before removing overlay
+              const activeTile = activeProjectTile;
+              const overlayEl  = document.getElementById('project-overlay');
+              if (overlayEl && activeTile) {
+                const vid = overlayEl.querySelector('video');
+                if (vid) {
+                  vid.pause(); vid.loop = true; vid.currentTime = 0;
+                  Object.assign(vid.style, {
+                    position: 'absolute', inset: '0', width: '100%', height: '100%',
+                    objectFit: 'cover', opacity: '1', objectPosition: '', transition: '',
+                  });
+                  activeTile.querySelector('.tile-inner')?.appendChild(vid);
+                }
+                if (overlayEl._docWheelHandler) document.removeEventListener('wheel', overlayEl._docWheelHandler);
+                overlayEl.remove();
+              }
+              const scrollElRef = document.getElementById('project-scroll');
+              if (scrollElRef) scrollElRef.remove();
+
+              tiles.forEach(t => { t.style.filter = ''; });
+              if (activeTile) activeTile.style.opacity = '1';
+
+              isProjectView     = false;
+              lastProjectTile   = activeTile;
+              activeProjectTile = null;
+
+              // Pop history entry; pullCloseInProgress prevents double-close via popstate
+              pullCloseInProgress = true;
+              history.back();
+
+              // Re-wire all tile listeners by re-running scatter from near-completion
+              crossfadeTriggered = true;
+              hasScattered       = false;
+              scatterComplete    = false;
+              progress           = 0.999;
+              scatter();
+
+              // Clear the pull transform so scatter's translate drives tiles solo
+              setTimeout(() => {
+                tiles.forEach(t => { t.style.transition = ''; t.style.transform = ''; });
+                nameEl.style.transition     = '';
+                subtitleEl.style.transition = '';
+                if (gridFooter) gridFooter.style.transition = '';
+              }, 120);
+            }, 220);
           }
 
           scrollEl.addEventListener('touchstart', (e) => {
@@ -1216,43 +1279,35 @@ document.addEventListener('DOMContentLoaded', function () {
               if (scrollEl.scrollTop < maxScroll - 2) return;
               atScrollBottom  = true;
               touchPullStartY = e.touches[0].clientY;
+              // Park tiles just below the viewport, invisible, ready to fly in
+              tiles.forEach(t => { t.style.transition = 'none'; t.style.transform = `translateY(${TILE_Y_START}px)`; });
             }
             const swipedUp = touchPullStartY - e.touches[0].clientY;
-            if (swipedUp <= 0) { if (pullDist > 0) snapPullPanelBack(); return; }
+            if (swipedUp <= 0) { if (pullDist > 0) snapTilesBack(); return; }
             pullDist = swipedUp;
-            const prog  = Math.min(1, swipedUp / 220);
-            const panel = getPullPanel();
-            panel.style.transition    = 'none';
-            panel.style.transform     = `translateY(${(1 - prog) * 100}vh)`;
-            scrollEl.style.transition = 'none';
-            scrollEl.style.opacity    = String(Math.max(0.2, 1 - prog));
+            const prog = Math.min(1, swipedUp / PULL_MAX);
+
+            // Tiles rise from below, tied 1:1 to drag — compose on top of scatter translate
+            tiles.forEach(t => {
+              t.style.transition = 'none';
+              t.style.opacity    = String(Math.min(1, prog * 1.8));
+              t.style.transform  = `translateY(${TILE_Y_START * (1 - prog)}px)`;
+            });
+            // Project content recedes
             const ov = document.getElementById('project-overlay');
-            if (ov) { ov.style.transition = 'none'; ov.style.opacity = String(Math.max(0, 1 - prog * 1.8)); }
+            if (ov) { ov.style.transition = 'none'; ov.style.opacity = String(Math.max(0, 1 - prog * 2)); }
+            scrollEl.style.transition = 'none';
+            scrollEl.style.opacity    = String(Math.max(0, 1 - prog * 1.5));
+            scrollEl.style.transform  = `translateY(${-prog * 32}px)`;
           }, { passive: true });
 
           scrollEl.addEventListener('touchend', () => {
             if (!atScrollBottom || pullDist <= 0) { atScrollBottom = false; pullDist = 0; return; }
-            const prog = Math.min(1, pullDist / 220);
+            const prog = Math.min(1, pullDist / PULL_MAX);
             atScrollBottom  = false;
-            pullDist        = 0;
             touchPullStartY = 0;
-            if (prog >= 0.3) {
-              // Snap curtain to cover everything, close project behind it, then reveal grid
-              const panel = getPullPanel();
-              panel.style.transition = 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)';
-              panel.style.transform  = 'translateY(0)';
-              panel.style.zIndex     = '200';
-              pullCloseInProgress = true;
-              closeProject();
-              history.back();
-              setTimeout(() => {
-                panel.style.transition = 'opacity 0.45s ease';
-                panel.style.opacity    = '0';
-                setTimeout(() => { panel.remove(); pullPanel = null; }, 480);
-              }, 600);
-            } else {
-              snapPullPanelBack();
-            }
+            pullDist        = 0;
+            if (prog >= 0.3) { commitPull(); } else { snapTilesBack(); }
           }, { passive: true });
         }
 
