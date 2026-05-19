@@ -1191,80 +1191,28 @@ document.addEventListener('DOMContentLoaded', function () {
           }
 
           function commitPull() {
-            // Snap tiles to their scatter positions — transform goes to 0, translate stays as-is
-            tiles.forEach(t => {
-              t.style.transition = `opacity 0.22s ease, transform 0.38s ${EASE}`;
-              t.style.opacity    = '1';
-              t.style.transform  = 'translateY(0)';
-            });
-            // Fade out project overlay and scroll content
-            const ovEl  = document.getElementById('project-overlay');
-            const scEl  = document.getElementById('project-scroll');
-            if (ovEl)  { ovEl.style.transition = 'opacity 0.22s ease'; ovEl.style.opacity = '0'; }
-            if (scEl)  {
-              scEl.style.pointerEvents = 'none';
-              scEl.style.transition    = 'opacity 0.2s ease, transform 0.25s ease';
-              scEl.style.opacity       = '0';
-              scEl.style.transform     = 'translateY(-24px)';
-            }
-            // Restore name / subtitle / footer
-            nameEl.style.transition     = 'opacity 0.4s ease 0.1s';
-            nameEl.style.opacity        = '1';
-            subtitleEl.style.transition = 'opacity 0.4s ease 0.1s';
-            subtitleEl.style.opacity    = '1';
-            const gridFooter = document.getElementById('site-footer');
-            if (gridFooter) {
-              gridFooter.style.transition    = 'opacity 0.4s ease 0.1s';
-              gridFooter.style.opacity       = '1';
-              gridFooter.style.pointerEvents = 'auto';
-            }
+            const W      = wrap.offsetWidth, H = wrap.offsetHeight;
+            const dist   = window.__scatterEnergy || 0.15;
+            const distX  = dist * H / (2 * W); // mobile scatter X ratio
+            const active = activeProjectTile;
 
-            setTimeout(() => {
-              // Move video back to tile before removing overlay
-              const activeTile = activeProjectTile;
-              const overlayEl  = document.getElementById('project-overlay');
-              if (overlayEl && activeTile) {
-                const vid = overlayEl.querySelector('video');
-                if (vid) {
-                  vid.pause(); vid.loop = true; vid.currentTime = 0;
-                  Object.assign(vid.style, {
-                    position: 'absolute', inset: '0', width: '100%', height: '100%',
-                    objectFit: 'cover', opacity: '1', objectPosition: '', transition: '',
-                  });
-                  activeTile.querySelector('.tile-inner')?.appendChild(vid);
-                }
-                if (overlayEl._docWheelHandler) document.removeEventListener('wheel', overlayEl._docWheelHandler);
-                overlayEl.remove();
+            tiles.forEach((t, i) => {
+              t.style.transition = 'none';
+              t.style.transform  = ''; // clear pull transform so FLIP math is clean
+              if (t !== active) {
+                // Park at scatter X, but below the viewport — closeProject springs to scatter
+                t.style.translate = `${DIRS[i].x * W * distX}px ${Math.round(window.innerHeight * 0.9)}px`;
               }
-              const scrollElRef = document.getElementById('project-scroll');
-              if (scrollElRef) scrollElRef.remove();
+            });
 
-              tiles.forEach(t => { t.style.filter = ''; });
-              if (activeTile) activeTile.style.opacity = '1';
+            // Flush layout so rects are committed before closeProject reads them
+            wrap.getBoundingClientRect();
 
-              isProjectView     = false;
-              lastProjectTile   = activeTile;
-              activeProjectTile = null;
-
-              // Pop history entry; pullCloseInProgress prevents double-close via popstate
-              pullCloseInProgress = true;
-              history.back();
-
-              // Re-wire all tile listeners by re-running scatter from near-completion
-              crossfadeTriggered = true;
-              hasScattered       = false;
-              scatterComplete    = false;
-              progress           = 0.999;
-              scatter();
-
-              // Clear the pull transform so scatter's translate drives tiles solo
-              setTimeout(() => {
-                tiles.forEach(t => { t.style.transition = ''; t.style.transform = ''; });
-                nameEl.style.transition     = '';
-                subtitleEl.style.transition = '';
-                if (gridFooter) gridFooter.style.transition = '';
-              }, 120);
-            }, 220);
+            // closeProject runs the identical spring animation as tapping the video:
+            // overlay FLIPs back to tile, other tiles spring from bottom → scatter, name/footer restore
+            pullCloseInProgress = true;
+            closeProject();
+            history.back();
           }
 
           scrollEl.addEventListener('touchstart', (e) => {
