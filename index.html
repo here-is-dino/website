@@ -849,93 +849,6 @@ document.addEventListener('DOMContentLoaded', function () {
     overlay.style.transform  = 'translateZ(0)';
     overlay.getBoundingClientRect(); // force reflow
 
-    // ── Mobile: entire grid flies in from below, no FLIP ────────────────────
-    if (isMobile) {
-      const stageEl = document.getElementById('stage');
-      const EASE    = 'cubic-bezier(0.22, 1, 0.36, 1)';
-      const VH      = window.innerHeight;
-      const W       = wrap.offsetWidth, H = wrap.offsetHeight;
-      const dist    = window.__scatterEnergy || 0.15;
-      const distX   = dist * H / (2 * W);
-
-      // Fade overlay out — no FLIP
-      overlay.style.transition = 'opacity 0.4s ease';
-      overlay.style.opacity    = '0';
-
-      // Pre-set tiles to their final scatter positions so the grid looks
-      // correct as it rises (avoids a jump from 0.55→0.15 scatter on land)
-      tiles.forEach((t, i) => {
-        t.style.transition = 'none';
-        t.style.opacity    = '1';
-        t.style.translate  = `${DIRS[i].x * W * distX}px ${DIRS[i].y * H * dist}px`;
-      });
-
-      // Park stage below viewport, then spring it into view
-      stageEl.style.transition = 'none';
-      stageEl.style.transform  = `translateY(${VH}px)`;
-      stageEl.style.opacity    = '0';
-      stageEl.getBoundingClientRect(); // flush
-
-      requestAnimationFrame(() => {
-        stageEl.style.transition = `opacity 0.45s ease, transform 0.75s ${EASE}`;
-        stageEl.style.transform  = 'translateY(0)';
-        stageEl.style.opacity    = '1';
-      });
-
-      // Name / subtitle fade in
-      setTimeout(() => {
-        nameEl.style.transition     = 'opacity 0.4s ease';
-        subtitleEl.style.transition = 'opacity 0.4s ease';
-        nameEl.style.opacity        = '1';
-        subtitleEl.style.opacity    = '1';
-      }, 200);
-
-      // Footer flies up
-      const gridFooter = document.getElementById('site-footer');
-      if (gridFooter) {
-        gridFooter.style.transition = 'none';
-        gridFooter.style.transform  = 'translateX(-50%) translateY(60px)';
-        gridFooter.style.opacity    = '0';
-        requestAnimationFrame(() => {
-          gridFooter.style.transition    = `transform 0.7s ${EASE}, opacity 0.5s ease`;
-          gridFooter.style.transform     = 'translateX(-50%) translateY(0)';
-          gridFooter.style.opacity       = '1';
-          gridFooter.style.pointerEvents = 'auto';
-        });
-      }
-
-      // After animation: move video back, clean up, reset state
-      setTimeout(() => {
-        const vid = overlay.querySelector('video');
-        if (vid) {
-          vid.pause(); vid.loop = true; vid.currentTime = 0;
-          Object.assign(vid.style, { position:'absolute', inset:'0', width:'100%', height:'100%', objectFit:'cover', opacity:'1', objectPosition:'', transition:'' });
-          tile.querySelector('.tile-inner')?.appendChild(vid);
-        }
-        tiles.forEach(t => { t.style.transition = 'filter 0.4s ease'; t.style.filter = ''; });
-        tile.style.opacity = '1';
-        overlay.remove();
-
-        document.getElementById('pull-indicator')?.remove();
-
-        stageEl.style.transition = '';
-        stageEl.style.transform  = '';
-        stageEl.style.opacity    = '';
-        nameEl.style.transition  = '';
-        subtitleEl.style.transition = '';
-        if (gridFooter) gridFooter.style.transition = '';
-
-        isProjectView     = false;
-        activeProjectTile = null;
-        hasScattered      = false;
-        scatterComplete   = false;
-        scatter(); // progress=1 → applyScatter(1) runs instantly, re-wires listeners
-      }, 820);
-
-      return; // skip FLIP and transitionend watcher below
-    }
-    // ────────────────────────────────────────────────────────────────────────
-
     const tileRect    = tile.getBoundingClientRect();
     const overlayRect = overlay.getBoundingClientRect();
     const easeOut     = 'cubic-bezier(0.22, 1, 0.36, 1)';
@@ -1251,11 +1164,11 @@ document.addEventListener('DOMContentLoaded', function () {
           scrollEl.style.maskImage = mask;
         }
 
-        // Mobile: scroll-edge indicator + pull-to-close (works at both top and bottom)
+        // Mobile: scroll-edge indicator + pull-to-close (top and bottom)
         if (isMobile) {
           scrollEl.style.overscrollBehavior = 'none';
 
-          // Subtle pill that appears when the user reaches a scroll edge
+          // Subtle pill — fades in when user reaches a scroll edge
           const ind = document.createElement('div');
           ind.id = 'pull-indicator';
           Object.assign(ind.style, {
@@ -1271,10 +1184,7 @@ document.addEventListener('DOMContentLoaded', function () {
           let pullDist    = 0;
           let wasAtTop    = true;  // project opens at scrollTop = 0
           let wasAtBottom = false;
-          const PULL_MAX = 220;
-          const stageEl  = document.getElementById('stage');
-          const VH       = window.innerHeight;
-          const EASE     = 'cubic-bezier(0.22, 1, 0.36, 1)';
+          const PULL_MAX  = 180;
 
           function showIndicator(edge) {
             ind.style.bottom = edge === 'bottom' ? '24px' : 'auto';
@@ -1283,7 +1193,6 @@ document.addEventListener('DOMContentLoaded', function () {
           }
           function hideIndicator() { ind.style.opacity = '0'; }
 
-          // Reveal pill when user reaches a scroll edge
           scrollEl.addEventListener('scroll', () => {
             const max   = scrollEl.scrollHeight - scrollEl.clientHeight;
             const atTop = scrollEl.scrollTop <= 2;
@@ -1295,102 +1204,22 @@ document.addEventListener('DOMContentLoaded', function () {
             wasAtBottom = atBot;
           }, { passive: true });
 
-          function initPull(edge) {
-            pullEdge = edge;
-            hideIndicator();
-            tiles.forEach(t => { t.style.transition = 'none'; t.style.opacity = '1'; });
-            stageEl.style.transition = 'none';
-            stageEl.style.transform  = `translateY(${VH}px) scale(1.3)`;
-            stageEl.style.opacity    = '0';
-          }
-
-          function restoreProjectView() {
-            tiles.forEach(t => { t.style.transition = ''; t.style.opacity = '0'; });
-            stageEl.style.transition = '';
-            stageEl.style.transform  = '';
-            stageEl.style.opacity    = '';
-            const ov = document.getElementById('project-overlay');
-            if (ov) { ov.style.transition = ''; ov.style.opacity = ''; }
-            scrollEl.style.transition = '';
-            scrollEl.style.opacity    = '';
-            scrollEl.style.transform  = '';
-          }
-
           function snapBack() {
-            stageEl.style.transition = `opacity 0.3s ease, transform 0.4s ${EASE}`;
-            stageEl.style.transform  = `translateY(${VH}px) scale(1.3)`;
-            stageEl.style.opacity    = '0';
-            const ov = document.getElementById('project-overlay');
-            if (ov) { ov.style.transition = 'opacity 0.25s ease'; ov.style.opacity = ''; }
-            scrollEl.style.transition = 'opacity 0.25s ease, transform 0.3s ease';
+            scrollEl.style.transition = 'opacity 0.25s ease';
             scrollEl.style.opacity    = '';
-            scrollEl.style.transform  = '';
             pullEdge = null;
             pullDist = 0;
-            setTimeout(restoreProjectView, 420);
           }
 
           function commitPull() {
             hideIndicator();
-            stageEl.style.transition = `opacity 0.25s ease, transform 0.48s ${EASE}`;
-            stageEl.style.transform  = 'translateY(0) scale(1)';
-            stageEl.style.opacity    = '1';
-
-            const ovEl = document.getElementById('project-overlay');
-            const scEl = document.getElementById('project-scroll');
-            if (ovEl) { ovEl.style.transition = 'opacity 0.25s ease'; ovEl.style.opacity = '0'; }
-            if (scEl) {
-              scEl.style.pointerEvents = 'none';
-              scEl.style.transition    = 'opacity 0.2s ease, transform 0.25s ease';
-              scEl.style.opacity       = '0';
-              scEl.style.transform     = 'translateY(-24px)';
-            }
-
-            setTimeout(() => {
-              ind.remove();
-              const activeTile = activeProjectTile;
-              const overlayEl  = document.getElementById('project-overlay');
-              if (overlayEl && activeTile) {
-                const vid = overlayEl.querySelector('video');
-                if (vid) {
-                  vid.pause(); vid.loop = true; vid.currentTime = 0;
-                  Object.assign(vid.style, { position:'absolute', inset:'0', width:'100%', height:'100%', objectFit:'cover', opacity:'1', objectPosition:'', transition:'' });
-                  activeTile.querySelector('.tile-inner')?.appendChild(vid);
-                }
-                if (overlayEl._docWheelHandler) document.removeEventListener('wheel', overlayEl._docWheelHandler);
-                overlayEl.remove();
-              }
-              document.getElementById('project-scroll')?.remove();
-
-              tiles.forEach(t => { t.style.filter = ''; t.style.opacity = '1'; });
-              if (activeTile) activeTile.style.opacity = '1';
-
-              stageEl.style.transition = '';
-              stageEl.style.transform  = '';
-              stageEl.style.opacity    = '';
-
-              isProjectView     = false;
-              lastProjectTile   = activeTile;
-              activeProjectTile = null;
-
-              pullCloseInProgress = true;
-              history.back();
-
-              nameEl.style.transition     = 'opacity 0.3s ease';
-              subtitleEl.style.transition = 'opacity 0.3s ease';
-              const gf = document.getElementById('site-footer');
-              if (gf) gf.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-              crossfadeTriggered = true;
-              hasScattered       = false;
-              scatterComplete    = false;
-              scatter();
-
-              setTimeout(() => {
-                nameEl.style.transition     = '';
-                subtitleEl.style.transition = '';
-                if (gf) gf.style.transition = '';
-              }, 350);
-            }, 490);
+            // Restore opacity so closeProject's own fade starts clean
+            scrollEl.style.transition = '';
+            scrollEl.style.opacity    = '';
+            // Same animation as tapping the video — reversed FLIP
+            pullCloseInProgress = true;
+            closeProject();
+            history.back();
           }
 
           scrollEl.addEventListener('touchstart', (e) => {
@@ -1399,41 +1228,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
           scrollEl.addEventListener('touchmove', (e) => {
             const currY  = e.touches[0].clientY;
-            const deltaY = currY - touchStartY; // + = finger moved down
+            const deltaY = currY - touchStartY;
             const max    = scrollEl.scrollHeight - scrollEl.clientHeight;
 
             if (!pullEdge) {
               if (scrollEl.scrollTop >= max - 2 && deltaY < 0) {
-                touchStartY = currY; initPull('bottom');
+                touchStartY = currY; pullEdge = 'bottom'; hideIndicator();
               } else if (scrollEl.scrollTop <= 2 && deltaY > 0) {
-                touchStartY = currY; initPull('top');
+                touchStartY = currY; pullEdge = 'top'; hideIndicator();
               } else { return; }
             }
 
-            const raw  = pullEdge === 'bottom'
-              ? touchStartY - currY   // swipe up  → positive
-              : currY - touchStartY;  // swipe down → positive
+            const raw = pullEdge === 'bottom'
+              ? touchStartY - currY
+              : currY - touchStartY;
             if (raw <= 0) { if (pullDist > 0) snapBack(); return; }
 
-            pullDist       = raw;
-            const prog     = Math.min(1, raw / PULL_MAX);
-            stageEl.style.transition = 'none';
-            stageEl.style.transform  = `translateY(${VH * (1 - prog)}px) scale(${1.3 - 0.3 * prog})`;
-            stageEl.style.opacity    = String(Math.min(1, prog * 1.6));
-
-            const ov = document.getElementById('project-overlay');
-            if (ov) { ov.style.transition = 'none'; ov.style.opacity = String(Math.max(0, 1 - prog * 2)); }
+            pullDist = raw;
+            // Subtle dim only — closeProject handles the full animation on release
             scrollEl.style.transition = 'none';
-            scrollEl.style.opacity    = String(Math.max(0, 1 - prog * 1.5));
-            scrollEl.style.transform  = `translateY(${-prog * 32}px)`;
+            scrollEl.style.opacity    = String(Math.max(0.5, 1 - (raw / PULL_MAX) * 0.5));
           }, { passive: true });
 
           scrollEl.addEventListener('touchend', () => {
             if (!pullEdge || pullDist <= 0) { pullEdge = null; pullDist = 0; return; }
-            const prog = pullDist / PULL_MAX;
+            const fired = pullDist >= PULL_MAX * 0.3;
             pullEdge = null;
             pullDist = 0;
-            if (prog >= 0.3) { commitPull(); } else { snapBack(); }
+            if (fired) { commitPull(); } else { snapBack(); }
           }, { passive: true });
         }
 
