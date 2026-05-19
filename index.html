@@ -798,6 +798,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   let hasScattered        = false;
   let isProjectView       = false;
+  let pullCloseInProgress = false;
   let scatterComplete     = false;
   let crossfadeTriggered  = false;
   let activeProjectTile = null;
@@ -1163,6 +1164,98 @@ document.addEventListener('DOMContentLoaded', function () {
           scrollEl.style.maskImage = mask;
         }
 
+        // Mobile pull-to-close: overscroll at the bottom slides the grid in from below
+        if (isMobile) {
+          scrollEl.style.overscrollBehavior = 'none';
+          let pullPanel      = null;
+          let touchPullStartY = 0;
+          let atScrollBottom  = false;
+          let pullDist        = 0;
+
+          function getPullPanel() {
+            if (!pullPanel) {
+              pullPanel = document.createElement('div');
+              Object.assign(pullPanel.style, {
+                position:      'fixed',
+                top: '0', left: '0', right: '0', bottom: '0',
+                background:    '#ccc5ba',
+                zIndex:        '49',
+                transform:     'translateY(100vh)',
+                willChange:    'transform',
+                pointerEvents: 'none',
+              });
+              document.body.appendChild(pullPanel);
+            }
+            return pullPanel;
+          }
+
+          function snapPullPanelBack() {
+            if (pullPanel) {
+              pullPanel.style.transition = 'transform 0.38s cubic-bezier(0.22, 1, 0.36, 1)';
+              pullPanel.style.transform  = 'translateY(100vh)';
+              const p = pullPanel;
+              setTimeout(() => { p.remove(); if (pullPanel === p) pullPanel = null; }, 400);
+            }
+            scrollEl.style.transition = 'opacity 0.25s ease';
+            scrollEl.style.opacity    = '';
+            const ov = document.getElementById('project-overlay');
+            if (ov) { ov.style.transition = 'opacity 0.25s ease'; ov.style.opacity = ''; }
+            pullDist       = 0;
+            atScrollBottom = false;
+          }
+
+          scrollEl.addEventListener('touchstart', (e) => {
+            touchPullStartY = e.touches[0].clientY;
+            const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+            atScrollBottom  = scrollEl.scrollTop >= maxScroll - 2;
+          }, { passive: true });
+
+          scrollEl.addEventListener('touchmove', (e) => {
+            if (!atScrollBottom) {
+              const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+              if (scrollEl.scrollTop < maxScroll - 2) return;
+              atScrollBottom  = true;
+              touchPullStartY = e.touches[0].clientY;
+            }
+            const swipedUp = touchPullStartY - e.touches[0].clientY;
+            if (swipedUp <= 0) { if (pullDist > 0) snapPullPanelBack(); return; }
+            pullDist = swipedUp;
+            const prog  = Math.min(1, swipedUp / 220);
+            const panel = getPullPanel();
+            panel.style.transition    = 'none';
+            panel.style.transform     = `translateY(${(1 - prog) * 100}vh)`;
+            scrollEl.style.transition = 'none';
+            scrollEl.style.opacity    = String(Math.max(0.2, 1 - prog));
+            const ov = document.getElementById('project-overlay');
+            if (ov) { ov.style.transition = 'none'; ov.style.opacity = String(Math.max(0, 1 - prog * 1.8)); }
+          }, { passive: true });
+
+          scrollEl.addEventListener('touchend', () => {
+            if (!atScrollBottom || pullDist <= 0) { atScrollBottom = false; pullDist = 0; return; }
+            const prog = Math.min(1, pullDist / 220);
+            atScrollBottom  = false;
+            pullDist        = 0;
+            touchPullStartY = 0;
+            if (prog >= 0.3) {
+              // Snap curtain to cover everything, close project behind it, then reveal grid
+              const panel = getPullPanel();
+              panel.style.transition = 'transform 0.22s cubic-bezier(0.22, 1, 0.36, 1)';
+              panel.style.transform  = 'translateY(0)';
+              panel.style.zIndex     = '200';
+              pullCloseInProgress = true;
+              closeProject();
+              history.back();
+              setTimeout(() => {
+                panel.style.transition = 'opacity 0.45s ease';
+                panel.style.opacity    = '0';
+                setTimeout(() => { panel.remove(); pullPanel = null; }, 480);
+              }, 600);
+            } else {
+              snapPullPanelBack();
+            }
+          }, { passive: true });
+        }
+
         // Title block — scrolls with content, sits directly below the video
         const titleBlockEl = document.createElement('div');
         titleBlockEl.id = 'project-title-block';
@@ -1494,7 +1587,8 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     } else {
       // Touch devices (mobile + tablet): first tap → zoom + video; second tap → project page
-      let mobileTapTile = null;
+      let mobileTapTile  = null;
+      let mobileTapTimer = null;
 
       videoTiles.forEach(({ tile, vid }) => {
         const inner  = tile.querySelector('.tile-inner');
@@ -1504,6 +1598,8 @@ document.addEventListener('DOMContentLoaded', function () {
         tile.addEventListener('touchend', (e) => {
           if (!scatterComplete) return;
           e.preventDefault(); // prevent ghost click
+
+          if (mobileTapTimer) { clearTimeout(mobileTapTimer); mobileTapTimer = null; }
 
           const mobileRowLabelEl = document.getElementById('mobile-row-label');
 
@@ -1559,8 +1655,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             vid.play().catch(() => {});
             fadeOthers(tile);
+            // Auto-navigate after 500ms if no other action taken
+            mobileTapTimer = setTimeout(() => {
+              mobileTapTimer = null;
+              if (mobileTapTile === tile) openProject(tile);
+            }, 500);
           } else {
-            // Second tap on same tile → open project page
+            // Second tap on same tile → open project page immediately
             openProject(tile);
           }
         }, { signal, passive: false });
@@ -1579,6 +1680,7 @@ document.addEventListener('DOMContentLoaded', function () {
           if (prevInner) prevInner.style.backgroundImage = '';
         }
         restoreAll();
+        if (mobileTapTimer) { clearTimeout(mobileTapTimer); mobileTapTimer = null; }
         mobileTapTile = null;
         hideMrl(document.getElementById('mobile-row-label'));
       }, { signal, passive: true });
@@ -1790,6 +1892,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Browser back/forward buttons and trackpad swipes
   window.addEventListener('popstate', (e) => {
+    if (pullCloseInProgress) { pullCloseInProgress = false; return; }
     if (isProjectView) {
       // Going back: close project view
       closeProject();
