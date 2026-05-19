@@ -1164,22 +1164,33 @@ document.addEventListener('DOMContentLoaded', function () {
           scrollEl.style.maskImage = mask;
         }
 
-        // Mobile pull-to-close: overscroll at the bottom flies the grid thumbnails in from below
+        // Mobile pull-to-close: overscroll at the bottom flies the entire grid in from below
         if (isMobile) {
           scrollEl.style.overscrollBehavior = 'none';
           let touchPullStartY = 0;
           let atScrollBottom  = false;
           let pullDist        = 0;
-          const PULL_MAX      = 260; // px drag to reach full commit
-          const TILE_Y_START  = Math.round(window.innerHeight * 0.68);
-          const EASE          = 'cubic-bezier(0.22, 1, 0.36, 1)';
+          const PULL_MAX  = 260;
+          const EASE      = 'cubic-bezier(0.22, 1, 0.36, 1)';
+          const stageEl   = document.getElementById('stage');
+          const VH        = window.innerHeight;
 
-          function snapTilesBack() {
-            tiles.forEach(t => {
-              t.style.transition = `opacity 0.32s ease, transform 0.4s ${EASE}`;
-              t.style.opacity    = '0';
-              t.style.transform  = `translateY(${TILE_Y_START}px)`;
-            });
+          function restoreProjectView() {
+            tiles.forEach(t => { t.style.transition = ''; t.style.opacity = '0'; });
+            stageEl.style.transition = '';
+            stageEl.style.transform  = '';
+            stageEl.style.opacity    = '';
+            const ov = document.getElementById('project-overlay');
+            if (ov) { ov.style.transition = ''; ov.style.opacity = ''; }
+            scrollEl.style.transition = '';
+            scrollEl.style.opacity    = '';
+            scrollEl.style.transform  = '';
+          }
+
+          function snapBack() {
+            stageEl.style.transition = `opacity 0.3s ease, transform 0.4s ${EASE}`;
+            stageEl.style.transform  = `translateY(${VH}px) scale(1.3)`;
+            stageEl.style.opacity    = '0';
             const ov = document.getElementById('project-overlay');
             if (ov) { ov.style.transition = 'opacity 0.25s ease'; ov.style.opacity = ''; }
             scrollEl.style.transition = 'opacity 0.25s ease, transform 0.3s ease';
@@ -1187,32 +1198,75 @@ document.addEventListener('DOMContentLoaded', function () {
             scrollEl.style.transform  = '';
             atScrollBottom = false;
             pullDist       = 0;
-            setTimeout(() => tiles.forEach(t => { t.style.transition = ''; t.style.transform = ''; }), 420);
+            setTimeout(restoreProjectView, 420);
           }
 
           function commitPull() {
-            const W      = wrap.offsetWidth, H = wrap.offsetHeight;
-            const dist   = window.__scatterEnergy || 0.15;
-            const distX  = dist * H / (2 * W); // mobile scatter X ratio
-            const active = activeProjectTile;
+            // Spring stage to its natural flex-centered position
+            stageEl.style.transition = `opacity 0.25s ease, transform 0.48s ${EASE}`;
+            stageEl.style.transform  = 'translateY(0) scale(1)';
+            stageEl.style.opacity    = '1';
 
-            tiles.forEach((t, i) => {
-              t.style.transition = 'none';
-              t.style.transform  = ''; // clear pull transform so FLIP math is clean
-              if (t !== active) {
-                // Park at scatter X, but below the viewport — closeProject springs to scatter
-                t.style.translate = `${DIRS[i].x * W * distX}px ${Math.round(window.innerHeight * 0.9)}px`;
+            // Fade out project overlay and scroll
+            const ovEl = document.getElementById('project-overlay');
+            const scEl = document.getElementById('project-scroll');
+            if (ovEl) { ovEl.style.transition = 'opacity 0.25s ease'; ovEl.style.opacity = '0'; }
+            if (scEl) {
+              scEl.style.pointerEvents = 'none';
+              scEl.style.transition    = 'opacity 0.2s ease, transform 0.25s ease';
+              scEl.style.opacity       = '0';
+              scEl.style.transform     = 'translateY(-24px)';
+            }
+
+            setTimeout(() => {
+              const activeTile = activeProjectTile;
+
+              // Move video back to tile before removing overlay
+              const overlayEl = document.getElementById('project-overlay');
+              if (overlayEl && activeTile) {
+                const vid = overlayEl.querySelector('video');
+                if (vid) {
+                  vid.pause(); vid.loop = true; vid.currentTime = 0;
+                  Object.assign(vid.style, { position:'absolute', inset:'0', width:'100%', height:'100%', objectFit:'cover', opacity:'1', objectPosition:'', transition:'' });
+                  activeTile.querySelector('.tile-inner')?.appendChild(vid);
+                }
+                if (overlayEl._docWheelHandler) document.removeEventListener('wheel', overlayEl._docWheelHandler);
+                overlayEl.remove();
               }
-            });
+              document.getElementById('project-scroll')?.remove();
 
-            // Flush layout so rects are committed before closeProject reads them
-            wrap.getBoundingClientRect();
+              tiles.forEach(t => { t.style.filter = ''; t.style.opacity = '1'; });
+              if (activeTile) activeTile.style.opacity = '1';
 
-            // closeProject runs the identical spring animation as tapping the video:
-            // overlay FLIPs back to tile, other tiles spring from bottom → scatter, name/footer restore
-            pullCloseInProgress = true;
-            closeProject();
-            history.back();
+              // Clear inline stage styles — body flexbox re-centres it naturally
+              stageEl.style.transition = '';
+              stageEl.style.transform  = '';
+              stageEl.style.opacity    = '';
+
+              isProjectView     = false;
+              lastProjectTile   = activeTile;
+              activeProjectTile = null;
+
+              pullCloseInProgress = true;
+              history.back();
+
+              // Re-wire tile listeners; progress=1 from initial scatter so scatter()
+              // calls applyScatter(1) immediately, restoring name/subtitle/footer
+              nameEl.style.transition     = 'opacity 0.3s ease';
+              subtitleEl.style.transition = 'opacity 0.3s ease';
+              const gf = document.getElementById('site-footer');
+              if (gf) gf.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+              crossfadeTriggered = true;
+              hasScattered       = false;
+              scatterComplete    = false;
+              scatter();
+
+              setTimeout(() => {
+                nameEl.style.transition     = '';
+                subtitleEl.style.transition = '';
+                if (gf) gf.style.transition = '';
+              }, 350);
+            }, 490);
           }
 
           scrollEl.addEventListener('touchstart', (e) => {
@@ -1227,20 +1281,22 @@ document.addEventListener('DOMContentLoaded', function () {
               if (scrollEl.scrollTop < maxScroll - 2) return;
               atScrollBottom  = true;
               touchPullStartY = e.touches[0].clientY;
-              // Park tiles just below the viewport, invisible, ready to fly in
-              tiles.forEach(t => { t.style.transition = 'none'; t.style.transform = `translateY(${TILE_Y_START}px)`; });
+              // Make tiles visible; park stage below viewport at 1.3× scale
+              tiles.forEach(t => { t.style.transition = 'none'; t.style.opacity = '1'; });
+              stageEl.style.transition = 'none';
+              stageEl.style.transform  = `translateY(${VH}px) scale(1.3)`;
+              stageEl.style.opacity    = '0';
             }
             const swipedUp = touchPullStartY - e.touches[0].clientY;
-            if (swipedUp <= 0) { if (pullDist > 0) snapTilesBack(); return; }
+            if (swipedUp <= 0) { if (pullDist > 0) snapBack(); return; }
             pullDist = swipedUp;
             const prog = Math.min(1, swipedUp / PULL_MAX);
 
-            // Tiles rise from below, tied 1:1 to drag — compose on top of scatter translate
-            tiles.forEach(t => {
-              t.style.transition = 'none';
-              t.style.opacity    = String(Math.min(1, prog * 1.8));
-              t.style.transform  = `translateY(${TILE_Y_START * (1 - prog)}px)`;
-            });
+            // Whole grid rises as a unit; scale eases from 1.3 → 1 so gaps compress naturally
+            stageEl.style.transition = 'none';
+            stageEl.style.transform  = `translateY(${VH * (1 - prog)}px) scale(${1.3 - 0.3 * prog})`;
+            stageEl.style.opacity    = String(Math.min(1, prog * 1.6));
+
             // Project content recedes
             const ov = document.getElementById('project-overlay');
             if (ov) { ov.style.transition = 'none'; ov.style.opacity = String(Math.max(0, 1 - prog * 2)); }
@@ -1255,7 +1311,7 @@ document.addEventListener('DOMContentLoaded', function () {
             atScrollBottom  = false;
             touchPullStartY = 0;
             pullDist        = 0;
-            if (prog >= 0.3) { commitPull(); } else { snapTilesBack(); }
+            if (prog >= 0.3) { commitPull(); } else { snapBack(); }
           }, { passive: true });
         }
 
