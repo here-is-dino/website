@@ -804,12 +804,14 @@ document.addEventListener('DOMContentLoaded', function () {
   let activeProjectTile = null;
   let lastProjectTile   = null; // retained after close for forward navigation
   let lastPullEdge      = null; // 'top' | 'bottom' — edge used to scroll back to grid
+  let closingFromPull   = false; // true when closeProject is called via commitPull
 
   function closeProject() {
     const overlay = document.getElementById('project-overlay');
     const tile    = activeProjectTile;
     lastProjectTile = tile; // save before clearing, so forward nav can re-open it
-    lastPullEdge    = null; // cleared — not a scroll-gesture close
+    if (!closingFromPull) lastPullEdge = null; // keep it when called from commitPull
+    closingFromPull = false; // consume the flag
     if (!overlay || !tile) return;
 
     // Fade out and remove all project page content
@@ -879,8 +881,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const easing = easeOut;
 
-    // Fade name/subtitle back in (desktop/tablet only — hidden on mobile)
-    if (!isMobile) setTimeout(() => {
+    // Fade name/subtitle back in
+    setTimeout(() => {
       nameEl.style.transition     = 'opacity 0.4s ease';
       subtitleEl.style.transition = 'opacity 0.4s ease';
       nameEl.style.opacity     = '1';
@@ -1282,6 +1284,7 @@ document.addEventListener('DOMContentLoaded', function () {
             scrollEl.style.transition = '';
             scrollEl.style.opacity    = '';
             pullCloseInProgress = true;
+            closingFromPull     = true; // prevent closeProject from wiping lastPullEdge
             closeProject();
             history.back();
           }
@@ -1527,20 +1530,23 @@ document.addEventListener('DOMContentLoaded', function () {
       if (row.el.classList.contains('visible')) positionRowLabel(row);
     });
 
-    // Name / subtitle — desktop/tablet only; hidden on mobile
-    if (!isMobile) {
-      const topTileUp = H * dist * p;
-      const nameBottom = 68 + topTileUp + 4;
-      const nameY = 80 * (1 - p);
-      nameEl.style.bottom = `calc(100% + ${nameBottom}px)`;
-      nameEl.style.opacity = p;
-      nameEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
-      const subtitleBottom = nameBottom - 38;
-      subtitleEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
-      subtitleEl.style.opacity = p;
-      subtitleEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
-      subtitleAboutEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
-    }
+    // Name rises from below into place above grid, left-aligned.
+    // Bottom offset grows to clear the top tiles as they move up.
+    const topTileUp = H * dist * p;
+    const nameBottom = 68 + topTileUp + 4;
+    const nameY = 80 * (1 - p);
+    nameEl.style.bottom = `calc(100% + ${nameBottom}px)`;
+    nameEl.style.opacity = p;
+    nameEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
+
+    // Subtitle rises in sync with name, positioned below
+    const subtitleBottom = nameBottom - 38;
+    subtitleEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
+    subtitleEl.style.opacity = p;
+    subtitleEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
+
+    // "About me" tracks the same vertical position but stays hidden (hover-controlled)
+    subtitleAboutEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
 
     // Footer rises in sync with the name — flies from viewport centre to bottom
     const footerEl = document.getElementById('site-footer');
