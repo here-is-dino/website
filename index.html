@@ -877,8 +877,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const easing = easeOut;
 
-    // Fade name/subtitle back in
-    setTimeout(() => {
+    // Fade name/subtitle back in (desktop/tablet only — hidden on mobile)
+    if (!isMobile) setTimeout(() => {
       nameEl.style.transition     = 'opacity 0.4s ease';
       subtitleEl.style.transition = 'opacity 0.4s ease';
       nameEl.style.opacity     = '1';
@@ -1524,23 +1524,20 @@ document.addEventListener('DOMContentLoaded', function () {
       if (row.el.classList.contains('visible')) positionRowLabel(row);
     });
 
-    // Name rises from below into place above grid, left-aligned.
-    // Bottom offset grows to clear the top tiles as they move up.
-    const topTileUp = H * dist * p;
-    const nameBottom = 68 + topTileUp + 4;
-    const nameY = 80 * (1 - p);
-    nameEl.style.bottom = `calc(100% + ${nameBottom}px)`;
-    nameEl.style.opacity = p;
-    nameEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
-
-    // Subtitle rises in sync with name, positioned below
-    const subtitleBottom = nameBottom - 38;
-    subtitleEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
-    subtitleEl.style.opacity = p;
-    subtitleEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
-
-    // "About me" tracks the same vertical position but stays hidden (hover-controlled)
-    subtitleAboutEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
+    // Name / subtitle — desktop/tablet only; hidden on mobile
+    if (!isMobile) {
+      const topTileUp = H * dist * p;
+      const nameBottom = 68 + topTileUp + 4;
+      const nameY = 80 * (1 - p);
+      nameEl.style.bottom = `calc(100% + ${nameBottom}px)`;
+      nameEl.style.opacity = p;
+      nameEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
+      const subtitleBottom = nameBottom - 38;
+      subtitleEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
+      subtitleEl.style.opacity = p;
+      subtitleEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
+      subtitleAboutEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
+    }
 
     // Footer rises in sync with the name — flies from viewport centre to bottom
     const footerEl = document.getElementById('site-footer');
@@ -1657,6 +1654,9 @@ document.addEventListener('DOMContentLoaded', function () {
         tile.addEventListener('touchend', (e) => {
           if (!scatterComplete) return;
           e.preventDefault(); // prevent ghost click
+
+          // Mobile: go straight to the project page on first tap — no preview delay
+          if (isMobile) { openProject(tile); return; }
 
           if (mobileTapTimer) { clearTimeout(mobileTapTimer); mobileTapTimer = null; }
 
@@ -1786,7 +1786,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     cancelAnimationFrame(rafId);
     function step() {
-      const ease = window.__scatterEase || 0.075;
+      // Mobile runs 40 % faster and uses a lighter curve (no heavy tail slow-down)
+      const ease = isMobile ? 0.12 : (window.__scatterEase || 0.075);
       progress += (1 - progress) * ease;
 
       // Unlock interactions while scatter is still slowing down (~85 % visual progress)
@@ -1814,9 +1815,11 @@ document.addEventListener('DOMContentLoaded', function () {
         applyScatter(1);
         return;
       }
-      // Power-2.4 smooth-step: ~40% slower start, builds speed, eases at end
-      // Power-3 smooth-step: slower start, faster mid, significantly slower tail
-      const sp = Math.min(1, Math.pow(progress, 3) * (4 - 3 * progress));
+      // Desktop: cubic smooth-step (slow start, fast mid, slow tail)
+      // Mobile: power-1.5 (moderate ease-in, no tail slow-down)
+      const sp = isMobile
+        ? Math.min(1, Math.pow(progress, 1.5))
+        : Math.min(1, Math.pow(progress, 3) * (4 - 3 * progress));
       applyScatter(sp);
       if (progress > 0.05) tiles.forEach(t => t.classList.add('scattered'));
       rafId = requestAnimationFrame(step);
