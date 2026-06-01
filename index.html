@@ -436,8 +436,15 @@
       /* Centre stage so portrait and title are centred */
       #stage { margin: 0 auto; width: calc(51.84vw * 1.501); transform: translateY(-10%); }
 
-      /* 3-column grid — 3px gap both directions */
-      #tile-grid { gap: 3px !important; }
+      /* 2-column grid (2×4) — 3px gap both directions */
+      #tile-grid {
+        grid-template-columns: 1fr 1fr !important;
+        grid-template-rows: repeat(4, 1fr) !important;
+        gap: 3px !important;
+      }
+
+      /* Drop the 9th tile (Alien.mp4) so we have exactly 8 in a 2×4 layout */
+      .tile[data-col="2"][data-row="2"] { display: none !important; }
 
       /* Row labels don't make sense without hover */
       .row-label { display: none; }
@@ -906,13 +913,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // Bring other tiles home to their scatter positions
     const W    = wrap.offsetWidth, H = wrap.offsetHeight;
     const dist = window.__scatterEnergy || 0.15;
-    // Mobile uses a smaller horizontal energy (distX) to match what applyScatter set
     const closeDist = isMobile ? dist * H / (2 * W) : dist;
     tiles.forEach((t, i) => {
       if (t === tile) return;
+      if (isMobile && i === 8) return; // hidden on mobile
+      const dir = isMobile ? MOBILE_DIRS_2X4[i] : DIRS[i];
       t.style.transition = 'opacity 0.5s ease, translate 0.8s cubic-bezier(0.22, 1, 0.36, 1)';
       t.style.opacity    = '1';
-      t.style.translate  = `${DIRS[i].x * W * closeDist}px ${DIRS[i].y * H * dist}px`;
+      t.style.translate  = `${dir.x * W * closeDist}px ${dir.y * H * dist}px`;
     });
 
     // On animation complete: move video back, remove overlay, re-enable grid
@@ -1113,9 +1121,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const W = wrap.offsetWidth, H = wrap.offsetHeight;
     tiles.forEach((t, i) => {
       if (t === tile) return;
+      if (isMobile && i === 8) return; // hidden on mobile
+      const d = isMobile ? MOBILE_DIRS_2X4[i] : DIRS[i];
       t.style.transition = 'opacity 0.4s ease, translate 0.7s cubic-bezier(0.22,1,0.36,1)';
       t.style.opacity    = '0';
-      const d = DIRS[i];
       t.style.translate  = `${d.x * W * 0.55}px ${d.y * H * 0.55}px`;
     });
 
@@ -1459,6 +1468,15 @@ document.addEventListener('DOMContentLoaded', function () {
     { x: -1, y:  1 }, { x:  0, y:  1 }, { x:  1, y:  1 },
   ];
 
+  // Mobile 2×4 scatter directions (DOM order: tiles 0-7 fill 2 cols × 4 rows; tile 8 hidden)
+  const MOBILE_DIRS_2X4 = [
+    { x: -1, y: -1    }, { x:  1, y: -1    },  // row 0
+    { x: -1, y: -0.33 }, { x:  1, y: -0.33 },  // row 1
+    { x: -1, y:  0.33 }, { x:  1, y:  0.33 },  // row 2
+    { x: -1, y:  1    }, { x:  1, y:  1    },  // row 3
+    { x:  0, y:  0    },                         // tile 8 (hidden – unused)
+  ];
+
   const RATIO_START = 1.501;
   const RATIO_END   = 1.7778;
   // Vertical offset so top margin (above name) equals bottom margin (below bottom tiles).
@@ -1472,48 +1490,96 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function applyScatter(p) {
     window.__scatterProgress = p;
+
+    if (isMobile) {
+      // ── Mobile 2×4: 2 columns, 4 rows, 8 tiles ───────────────────────────
+      const vw  = window.innerWidth;
+      const gap = Math.round(p * 3);
+      const fW  = vw * 0.94;                     // final grid width
+      const tW  = (fW - gap) / 2;               // tile width (half grid, minus gap)
+      const tH  = tW * 9 / 16;                  // tile height (16:9)
+      const fH  = 4 * tH + 3 * gap;             // final grid height (4 rows)
+      const iH  = vw * 0.5184;                  // initial height (matches CSS)
+      const iW  = iH * RATIO_START;             // initial width (matches CSS)
+      const W   = iW + (fW - iW) * p;
+      const H   = iH + (fH - iH) * p;
+
+      // Animate both dimensions (setProperty 'important' overrides CSS !important)
+      wrap.style.setProperty('width',  `${W}px`, 'important');
+      wrap.style.setProperty('height', `${H}px`, 'important');
+      document.getElementById('stage').style.width = `${W}px`;
+      tileGrid.style.gap = `${gap}px`;
+
+      const dist  = window.__scatterEnergy || 0.15;
+      const distX = dist * H / (2 * W);
+      tiles.forEach((tile, i) => {
+        if (i === 8) return; // hidden tile – skip
+        const dir = MOBILE_DIRS_2X4[i];
+        tile.style.translate = `${dir.x * W * distX * p}px ${dir.y * H * dist * p}px`;
+      });
+
+      const bottomShift = H * dist * 0.4 * p;
+      wrap.style.transform = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
+
+      if (portraitVideoEl && !portraitVideoEl.classList.contains('done')) {
+        portraitVideoEl.style.opacity = String(Math.max(0, 1 - p * 10));
+        if (p >= 0.1) portraitVideoEl.classList.add('done');
+      }
+      tileGrid.style.setProperty('--assembled-opacity', String(Math.max(0, 1 - p * 2)));
+
+      if (!crossfadeTriggered) {
+        crossfadeTriggered = true;
+        [video,video2,video3,video4,video5,video6,video7,video8,video9].forEach(v => {
+          v.style.transition = 'opacity 1.3s ease';
+          v.style.opacity    = '1';
+        });
+      }
+
+      const topTileUp      = H * dist * p;
+      const nameBottom     = 68 + topTileUp + 4;
+      const nameY          = 80 * (1 - p);
+      nameEl.style.bottom    = `calc(100% + ${nameBottom}px)`;
+      nameEl.style.opacity   = p;
+      nameEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
+
+      const subtitleBottom       = nameBottom - 38;
+      subtitleEl.style.bottom    = `calc(100% + ${subtitleBottom}px)`;
+      subtitleEl.style.opacity   = p;
+      subtitleEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
+      subtitleAboutEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
+
+      const footerEl = document.getElementById('site-footer');
+      if (footerEl) {
+        const footerY = window.innerHeight * 0.4 * (1 - p);
+        footerEl.style.opacity       = String(p);
+        footerEl.style.transform     = `translateX(-50%) translateY(-${footerY}px)`;
+        footerEl.style.pointerEvents = p >= 1 ? 'auto' : 'none';
+      }
+      return;
+    }
+
+    // ── Desktop / tablet ─────────────────────────────────────────────────────
     const H = wrap.offsetHeight;
-    // Mobile: stage is centred at ~17.6 vw from left; ratioEnd 2.3 gives W≈95 vw
-    // so cols 1+2 are roughly centred and col 3 is ~50% off-screen right.
-    const ratioEnd = isMobile ? 2.3 : RATIO_END;
-    // All devices: animate RATIO_START→ratioEnd.
-    // Desktop starts at RATIO_START (matching video frame & applyTweaks at p=0) — no jump.
-    // By p=1, desktop reaches RATIO_END giving 16:9 tiles.
-    const ratio = RATIO_START + (ratioEnd - RATIO_START) * p;
+    const ratio = RATIO_START + (RATIO_END - RATIO_START) * p;
     const W = H * ratio;
     wrap.style.width = `${W}px`;
 
-    const dist = window.__scatterEnergy || 0.15;
-
-    // Tiles scatter outward; grid drifts down slightly for vertical balance.
-    // On mobile the col-2 tiles are hidden — use symmetric DIRS so the 2-column
-    // grid stays centred (tiles 1/4/7 scatter right instead of staying in place).
-    const MOBILE_DIRS = [
-      { x: -1, y: -1 }, { x:  1, y: -1 }, { x:  0, y: -1 },
-      { x: -1, y:  0 }, { x:  1, y:  0 }, { x:  0, y:  0 },
-      { x: -1, y:  1 }, { x:  1, y:  1 }, { x:  0, y:  1 },
-    ];
-    // On mobile equalise col-gap and row-gap: distX = dist·H/(2·W)
-    const distX = isMobile ? dist * H / (2 * W) : dist;
+    const dist        = window.__scatterEnergy || 0.15;
     const bottomShift = H * dist * 0.4 * p;
     tiles.forEach((tile, i) => {
-      tile.style.translate = `${DIRS[i].x * W * distX * p}px ${DIRS[i].y * H * dist * p}px`;
+      tile.style.translate = `${DIRS[i].x * W * dist * p}px ${DIRS[i].y * H * dist * p}px`;
     });
-    // Tablet: combine scale + translateY in one assignment so neither overwrites the other
     const translateY = `translateY(${bottomShift + GRID_Y_OFFSET * p}px)`;
     wrap.style.transform = isTablet
       ? `${translateY} scale(${0.7 + 0.3 * p})`
       : translateY;
 
-    // Portrait video cover fades out fast so captured tile slices take over
     if (portraitVideoEl && !portraitVideoEl.classList.contains('done')) {
       portraitVideoEl.style.opacity = String(Math.max(0, 1 - p * 10));
       if (p >= 0.1) portraitVideoEl.classList.add('done');
     }
-    // Desktop/tablet: skip the seamless overlay so the per-tile crossfade is visible immediately.
-    // Mobile: fade the overlay out gradually so slices appear as gaps open.
-    tileGrid.style.setProperty('--assembled-opacity', String(isMobile ? Math.max(0, 1 - p * 2) : 0));
-    // Trigger CSS crossfade once at p=0.7 — duration set by transition, independent of easing
+    tileGrid.style.setProperty('--assembled-opacity', '0');
+
     if (!crossfadeTriggered) {
       crossfadeTriggered = true;
       [video,video2,video3,video4,video5,video6,video7,video8,video9].forEach(v => {
@@ -1522,33 +1588,25 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }
 
-    // Gap between tiles grows with scatter progress
-    tileGrid.style.gap = `${Math.round(p * (isMobile ? 3 : isTablet ? 5 : 10))}px`;
+    tileGrid.style.gap = `${Math.round(p * (isTablet ? 5 : 10))}px`;
 
-    // Keep row labels glued to their anchor tiles while visible
     rowLabels.forEach(row => {
       if (row.el.classList.contains('visible')) positionRowLabel(row);
     });
 
-    // Name rises from below into place above grid, left-aligned.
-    // Bottom offset grows to clear the top tiles as they move up.
-    const topTileUp = H * dist * p;
+    const topTileUp  = H * dist * p;
     const nameBottom = 68 + topTileUp + 4;
-    const nameY = 80 * (1 - p);
-    nameEl.style.bottom = `calc(100% + ${nameBottom}px)`;
-    nameEl.style.opacity = p;
+    const nameY      = 80 * (1 - p);
+    nameEl.style.bottom    = `calc(100% + ${nameBottom}px)`;
+    nameEl.style.opacity   = p;
     nameEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
 
-    // Subtitle rises in sync with name, positioned below
-    const subtitleBottom = nameBottom - 38;
-    subtitleEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
-    subtitleEl.style.opacity = p;
+    const subtitleBottom       = nameBottom - 38;
+    subtitleEl.style.bottom    = `calc(100% + ${subtitleBottom}px)`;
+    subtitleEl.style.opacity   = p;
     subtitleEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
-
-    // "About me" tracks the same vertical position but stays hidden (hover-controlled)
     subtitleAboutEl.style.bottom = `calc(100% + ${subtitleBottom}px)`;
 
-    // Footer rises in sync with the name — flies from viewport centre to bottom
     const footerEl = document.getElementById('site-footer');
     if (footerEl) {
       const footerY = window.innerHeight * 0.4 * (1 - p);
@@ -1908,8 +1966,16 @@ document.addEventListener('DOMContentLoaded', function () {
       portraitVideoEl.currentTime = 0;
     }
     portraitVideoTriggered = false;
-    wrap.style.transform = isTablet ? 'scale(0.7)' : '';
-    wrap.style.width = `${wrap.offsetHeight * RATIO_START}px`;
+    if (isMobile) {
+      const vw = window.innerWidth;
+      const initH = vw * 0.5184;
+      wrap.style.setProperty('width',  `${initH * RATIO_START}px`, 'important');
+      wrap.style.setProperty('height', `${initH}px`, 'important');
+      document.getElementById('stage').style.width = `${initH * RATIO_START}px`;
+    } else {
+      wrap.style.transform = isTablet ? 'scale(0.7)' : '';
+      wrap.style.width = `${wrap.offsetHeight * RATIO_START}px`;
+    }
     window.__scatterProgress = 0;
     tileGrid.style.gap = '0px';
     nameEl.style.opacity = '0';
