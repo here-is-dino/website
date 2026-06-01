@@ -1495,7 +1495,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // ── Mobile 2×4: 2 columns, 4 rows, 8 tiles ───────────────────────────
       const vw  = window.innerWidth;
       const gap = Math.round(p * 3);
-      const fW  = vw * 0.94;                     // final grid width
+      const fW  = vw * 0.94 * 0.65;              // final grid width (tiles 35% smaller)
       const tW  = (fW - gap) / 2;               // tile width (half grid, minus gap)
       const tH  = tW * 9 / 16;                  // tile height (16:9)
       const fH  = 4 * tH + 3 * gap;             // final grid height (4 rows)
