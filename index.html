@@ -1535,9 +1535,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       }
 
-      const topTileUp      = H * dist * p;
-      const nameBottom     = 68 + topTileUp + 4;
-      const nameY          = 80 * (1 - p);
+      // Balance: gap above text == gap between text and grid visual top.
+      // Derivation: stageTop = vph/2 - 0.6H; gridTop = stageTop - H*dist*0.6*p + GRID_Y_OFFSET*p
+      // nameHeight ≈ 22px; subtitleBottom = nameBottom - 38 (subtitle sits 38px below name bottom)
+      // Setting gapAbove == gapBelow solves to:
+      const vph        = window.innerHeight;
+      const nameBottom = Math.max(20, (vph / 2 - 0.6 * H + 16 - GRID_Y_OFFSET * p + H * dist * 0.6 * p) / 2);
+      const nameY      = 80 * (1 - p);
       nameEl.style.bottom    = `calc(100% + ${nameBottom}px)`;
       nameEl.style.opacity   = p;
       nameEl.style.transform = `translateX(-50%) translateY(${nameY}px)`;
